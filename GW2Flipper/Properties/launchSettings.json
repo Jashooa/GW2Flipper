@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "GW2Flipper": {
+      "commandName": "Project",
+      "remoteDebugEnabled": true,
+      "remoteDebugMachine": "JASH-DESKTOP:4026",
+      "authenticationMode": "Windows"
+    }
+  }
+}

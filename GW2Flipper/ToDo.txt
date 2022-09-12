@@ -1,0 +1,170 @@
+Do cancel undercut during buying process
+
+Check if trading post is open before each action
+
+
+Coords
+----------
+Mushroom
+	Coords		148,515
+	Size		24,24
+	Yes Button
+		Coords	30,557
+		Size	52,19
+		Mid		56,566	-92,+51
+
+
+Window
+	Size		992,732
+Search
+	Coords		59,154 middle = 70,165
+	Size		208,22
+    Mid         163,165
+Home
+	Coords		375,57
+	Size		48,48
+Buy Items
+	Coords		484,40
+	Size		164,100
+	Mid			566,90
+Buy Items Active
+	Coords		638,130
+	Size		10,10
+Sell Items
+	Coords		650,40
+	Size		165,100
+	Mid			732,90
+Sell Items Active
+	Coords		805,130
+	Size		10,10
+	Alt			706,126
+Sell Items Search Start
+	Coords		348,179
+	Size		64,61
+Transactions
+	Coords		817,40
+	Size		164,100
+	Mid			899,90
+TransactionsActive
+	Coords		817,130
+	Size		10,10
+Current Buying
+	Coords		60,224
+	Size		229,33
+	Mid			174,240
+
+Qty
+	Size		20,10
+	Coords		
+		Top		324,155
+		Mid		324,191
+		Bot		324,227
+Results border
+	Size		2,2
+	Coords
+		Top		322,177	-2,+22
+		Mid		322,213
+		Bot		322,249
+Cancel/Confirm Button
+	Coords		893,232
+	Size		58,18
+	Mid
+		Top		922,205	+600,+28
+		Mid		922,241
+		Bot		922,277
+
+
+Take All
+	Coords		146,676
+	Size		66,18
+	Mid			179,685
+
+Filters 
+	Cog
+		Coords		278,156
+		Size		18,18
+		Mid			287,165
+    FilterOpen
+        Coords      50,182 
+        Size        3,3
+	Dropdown
+		Coords		63,195
+		Size		220,20
+		Mid			173,205
+	Dropdown options
+		Coords		62,218
+		Size		222,25	222,200 total
+		Mid			173,230	+25
+	Level lower
+		Coords		63,259
+		Size		29,22
+		Mid			77,270
+	Level upper
+		Coords		124,259
+		Size		29,22
+		Mid			138,270
+	Reset filters
+		Coords		125,356 -56
+		Size		96,18
+		Mid			173,365
+
+NoItems
+	Size	9,15
+	Coords
+		Top		494,376
+		Mid		494,412
+		Bot		494,448
+
+Item Buy/Sell Window
+	Border
+		Coords	271,136
+	Exit
+		Coords	769,117
+		Size	16,16
+		Mid		777,125
+	Name
+		Coords	334,136
+		Size	428,34	428,64
+	GoldCoin
+		Coords	462,280	462,304
+		Size	12,6
+    "Available"
+        Coords  531,469 531,493
+        Size    15,10
+	Currency
+		Gold
+			Coords	384,266
+			Size	57,23
+			Mid		412,279
+		Silver
+			Coords	489,266
+			Size	27,23
+			Mid		502,279
+		Copper
+			Coords	563,266
+			Size	27,23
+			Mid		576,279
+	Quantity = 1
+		Coords	448,240
+	Quantity = Max
+		Coords	625,240
+	Quantity box
+		Coords	384,225
+		Size	37,23
+		Mid		402,236
+	+1 Copper
+		Coords	593,272
+	-1 Copper
+		Coords	593,283
+	Sell/buy button
+		Coords	382,364
+		Size	116,18
+		Middle	440,373
+	Current Buyers
+		Coords	248,493 +28
+		Size	12,12
+		Mid		254,499
+	Current Sellers
+		Coords	536,493 +28
+		Size	12,12
+		Mid		542,499
