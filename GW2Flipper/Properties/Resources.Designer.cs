@@ -83,6 +83,16 @@ namespace GW2Flipper.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
+        internal static System.Drawing.Bitmap CurrentBuying {
+            get {
+                object obj = ResourceManager.GetObject("CurrentBuying", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
         internal static System.Drawing.Bitmap FilterOpen {
             get {
                 object obj = ResourceManager.GetObject("FilterOpen", resourceCulture);
@@ -96,6 +106,16 @@ namespace GW2Flipper.Properties {
         internal static System.Drawing.Bitmap GoldCoin {
             get {
                 object obj = ResourceManager.GetObject("GoldCoin", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap LoadMore {
+            get {
+                object obj = ResourceManager.GetObject("LoadMore", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
@@ -146,6 +166,16 @@ namespace GW2Flipper.Properties {
         internal static System.Drawing.Bitmap ResultCorner {
             get {
                 object obj = ResourceManager.GetObject("ResultCorner", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap ReturnToGame {
+            get {
+                object obj = ResourceManager.GetObject("ReturnToGame", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }

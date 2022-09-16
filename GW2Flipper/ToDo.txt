@@ -1,7 +1,4 @@
-Do cancel undercut during buying process
-
-Check if trading post is open before each action
-
+Figure out better way to decide when to sell and how much for
 
 Coords
 ----------
@@ -52,6 +49,10 @@ Current Buying
 	Coords		60,224
 	Size		229,33
 	Mid			174,240
+Load More Button
+    Coords      610,679
+    Size        81,18
+    Mid         650,688
 
 Qty
 	Size		20,10

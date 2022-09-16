@@ -229,7 +229,7 @@ internal static class Input
         SendInput(input);
     }
 
-    public static void KeyPress(Process process, VirtualKeyCode keyCode, int delay = 50)
+    public static void KeyPress(Process process, VirtualKeyCode keyCode, int delay = 25)
     {
         KeyDown(process, keyCode);
         Thread.Sleep(delay);
@@ -355,9 +355,9 @@ internal static class Input
         var clipboard = ClipboardService.GetText();
 
         ClipboardService.SetText(text);
-        Thread.Sleep(100);
-        KeyPressWithModifier(process, VirtualKeyCode.VK_V, false, true, false, 50);
-        Thread.Sleep(100);
+        Thread.Sleep(50);
+        KeyPressWithModifier(process, VirtualKeyCode.VK_V, false, true, false);
+        Thread.Sleep(50);
 
         if (clipboard != null)
         {
@@ -379,9 +379,10 @@ internal static class Input
     {
         var clipboard = ClipboardService.GetText();
 
-        KeyPressWithModifier(process, VirtualKeyCode.VK_C, false, true, false, 50);
-        Thread.Sleep(100);
+        KeyPressWithModifier(process, VirtualKeyCode.VK_C, false, true, false);
+        Thread.Sleep(50);
         var text = ClipboardService.GetText();
+        Thread.Sleep(50);
 
         if (clipboard != null)
         {

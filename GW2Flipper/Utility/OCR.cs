@@ -17,12 +17,12 @@ internal static class OCR
 
     public static string ReadName(Bitmap bitmap, Color color)
     {
-        using var engine = new Engine("./tessdata", TesseractOCR.Enums.Language.English, TesseractOCR.Enums.EngineMode.Default);
-        _ = engine.SetVariable("tessedit_char_whitelist", "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890 + -/ '\",()");
+        using var engine = new Engine("./tessdata", "eng_best", TesseractOCR.Enums.EngineMode.Default);
+        _ = engine.SetVariable("tessedit_char_whitelist", "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890 + -—/ '\",()");
 
         var ms = new MemoryStream();
-        bitmap.BinarizeByColor(color, 0.6).Save(ms, ImageFormat.Bmp);
-        var image = TesseractOCR.Pix.Image.LoadFromMemory(ms);
+        bitmap.BinarizeByColor(color, 0.55).Save(ms, ImageFormat.Bmp);
+        var image = TesseractOCR.Pix.Image.LoadFromMemory(ms).Scale(3.125f, 3.125f);
 
         using var page = engine.Process(image, TesseractOCR.Enums.PageSegMode.SingleBlock);
 
@@ -36,7 +36,6 @@ internal static class OCR
         else if (page.MeanConfidence < 0.9)
         {
             Logger.Debug($"Mean confidence: {page.MeanConfidence} !!!");
-            // image.Save($"./logs/images/{DateTime.Now.ToString("s").Replace(":", string.Empty)}.png", TesseractOCR.Enums.ImageFormat.Png);
         }
         else
         {
