@@ -181,6 +181,19 @@ internal static class GW2Flipper
 
         while (true)
         {
+            if (Process.GetProcessesByName("Gw2-64").SingleOrDefault() == null)
+            {
+                Logger.Error("Process gone");
+                return;
+            }
+
+            apiClient.Mumble.Update();
+            if (string.IsNullOrEmpty(apiClient.Mumble.CharacterName))
+            {
+                Logger.Error("Not logged in");
+                return;
+            }
+
             try
             {
                 await UpdateBuyList();
@@ -200,8 +213,6 @@ internal static class GW2Flipper
                 {
                     Logger.Error(e);
                 }
-
-                Input.KeyPress(process!, VirtualKeyCode.ESCAPE);
             }
 
             try
@@ -213,8 +224,6 @@ internal static class GW2Flipper
                 Logger.Error(e);
             }
 
-            Input.KeyPress(process!, VirtualKeyCode.ESCAPE);
-
             try
             {
                 await SellItems();
@@ -224,10 +233,11 @@ internal static class GW2Flipper
                 Logger.Error(e);
             }
 
-            Input.KeyPress(process!, VirtualKeyCode.ESCAPE);
-
-            AntiAfk();
-            CheckNewMap();
+            if (ResetUI())
+            {
+                AntiAfk();
+                CheckNewMap();
+            }
 
             var delay = Random.Next((int)TimeSpan.FromMinutes(3).TotalMilliseconds, (int)TimeSpan.FromMinutes(5).TotalMilliseconds);
 
@@ -342,42 +352,53 @@ internal static class GW2Flipper
             }
             catch (TimeoutException)
             {
-                Logger.Info("Attempting reset");
-                for (var i = 0; i <= 10; i++)
+                if (ResetUI())
                 {
-                    if (i == 10)
+                    Input.KeyPress(process!, VirtualKeyCode.VK_F);
+
+                    try
+                    {
+                        await WaitWhile(() => ImageSearch.FindImageInFullWindow(process!, Resources.TradingPostHome, 0.9) == null, 100, 10000);
+                    }
+                    catch (TimeoutException)
                     {
                         throw new TimeoutException();
                     }
-
-                    Input.KeyPress(process!, VirtualKeyCode.ESCAPE);
-                    await Task.Delay(2000);
-
-                    if (ImageSearch.FindImageInFullWindow(process!, Resources.ReturnToGame, 0.9) != null)
-                    {
-                        Logger.Info("Found escape menu");
-                        Input.KeyPress(process!, VirtualKeyCode.ESCAPE);
-                        await Task.Delay(2000);
-
-                        Input.KeyPress(process!, VirtualKeyCode.VK_F);
-
-                        try
-                        {
-                            await WaitWhile(() => ImageSearch.FindImageInFullWindow(process!, Resources.TradingPostHome, 0.9) == null, 100, 10000);
-                        }
-                        catch (TimeoutException)
-                        {
-                            throw new TimeoutException();
-                        }
-
-                        break;
-                    }
+                }
+                else
+                {
+                    throw new TimeoutException();
                 }
             }
 
             tradingPostPoint = ImageSearch.FindImageInFullWindow(process!, Resources.TradingPostLion);
             Logger.Info($"Found trading post at: {tradingPostPoint}");
+
+            await Task.Delay(2000);
         }
+    }
+
+    private static bool ResetUI()
+    {
+        Logger.Info("Attempting reset UI");
+
+        for (var i = 0; i < 10; i++)
+        {
+            Input.KeyPress(process!, VirtualKeyCode.ESCAPE);
+            Thread.Sleep(2000);
+
+            if (ImageSearch.FindImageInFullWindow(process!, Resources.ReturnToGame, 0.8) != null)
+            {
+                Logger.Info("Found escape menu");
+                Input.KeyPress(process!, VirtualKeyCode.ESCAPE);
+                Thread.Sleep(2000);
+                return true;
+            }
+        }
+
+        Logger.Debug("Wasn't able to reset UI");
+        LogImage();
+        return false;
     }
 
     private static async Task GoToScreen(TradingPostScreen screen)
@@ -565,23 +586,6 @@ internal static class GW2Flipper
     {
         Logger.Info("====================");
         Logger.Info("Selling items");
-
-        try
-        {
-            await GoToScreen(TradingPostScreen.Sell);
-        }
-        catch (TimeoutException)
-        {
-            Logger.Debug("Timeout on GoToScreen");
-            return;
-        }
-
-        // No items found
-        if (ImageSearch.FindImageInWindow(process!, Resources.NoItems, tradingPostPoint!.Value.X + 494, tradingPostPoint.Value.Y + 376, Resources.NoItems.Width, Resources.NoItems.Height + 72, 0.9) != null)
-        {
-            Logger.Debug("No items found");
-            return;
-        }
 
         using var apiClient = new Gw2Client(ApiConnection);
 
@@ -896,16 +900,6 @@ internal static class GW2Flipper
     {
         Logger.Info("====================");
         Logger.Info("Buying items");
-
-        try
-        {
-            await GoToScreen(TradingPostScreen.Buy);
-        }
-        catch (TimeoutException)
-        {
-            Logger.Debug("Timeout on GoToScreen");
-            return;
-        }
 
         using var apiClient = new Gw2Client(ApiConnection);
 
@@ -1293,6 +1287,7 @@ internal static class GW2Flipper
         }
         catch (TimeoutException)
         {
+            Logger.Debug("Timeout on GoToScreen");
             return;
         }
 
@@ -1373,6 +1368,7 @@ internal static class GW2Flipper
         // Check if no item found
         if (ImageSearch.FindImageInWindow(process!, Resources.NoItems, tradingPostPoint!.Value.X + 494, tradingPostPoint.Value.Y + 376, Resources.NoItems.Width, Resources.NoItems.Height + 72, 0.9) != null)
         {
+            Logger.Debug("No item found");
             return;
         }
 

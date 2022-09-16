@@ -1,4 +1,8 @@
 Figure out better way to decide when to sell and how much for
+If not selling because below profit range then
+    Get minimum sell price for still making a profit then
+    Get nearest current listing price above that
+    Then undercut and sell for that price
 
 Coords
 ----------
