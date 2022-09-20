@@ -31,7 +31,7 @@ internal static class OCR
         if (page.MeanConfidence < 0.1)
         {
             Logger.Debug($"Mean confidence: {page.MeanConfidence} !!!!!!!!!");
-            image.Save($"./logs/images/{DateTime.Now.ToString("s").Replace(":", string.Empty)}_OCR.png", TesseractOCR.Enums.ImageFormat.Png);
+            // image.Save($"./logs/images/{DateTime.Now.ToString("s").Replace(":", string.Empty)}_OCR.png", TesseractOCR.Enums.ImageFormat.Png);
         }
         else if (page.MeanConfidence < 0.9)
         {

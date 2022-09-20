@@ -32,7 +32,7 @@ internal static class Program
             Layout = "[${longdate}][${level:format=FirstCharacter}](${logger}) ${message} ${onexception:${newline}${exception:format=tostring,data}}",
         };
 
-        var consoleRule = new LoggingRule("*", LogLevel.Info, consoleTarget);
+        var consoleRule = new LoggingRule("*", LogLevel.Debug, consoleTarget);
         var fileRule = new LoggingRule("*", LogLevel.Debug, fileTarget);
 
         config.LoggingRules.Add(consoleRule);

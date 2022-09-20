@@ -93,6 +93,16 @@ namespace GW2Flipper.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
+        internal static System.Drawing.Bitmap Exit {
+            get {
+                object obj = ResourceManager.GetObject("Exit", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
         internal static System.Drawing.Bitmap FilterOpen {
             get {
                 object obj = ResourceManager.GetObject("FilterOpen", resourceCulture);
@@ -193,6 +203,16 @@ namespace GW2Flipper.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
+        internal static System.Drawing.Bitmap SuccessOK {
+            get {
+                object obj = ResourceManager.GetObject("SuccessOK", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
         internal static System.Drawing.Bitmap TradingPostHome {
             get {
                 object obj = ResourceManager.GetObject("TradingPostHome", resourceCulture);
@@ -216,6 +236,16 @@ namespace GW2Flipper.Properties {
         internal static System.Drawing.Bitmap TransactionsActive {
             get {
                 object obj = ResourceManager.GetObject("TransactionsActive", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap VendorE {
+            get {
+                object obj = ResourceManager.GetObject("VendorE", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }

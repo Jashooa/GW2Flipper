@@ -1,8 +1,4 @@
-Figure out better way to decide when to sell and how much for
-If not selling because below profit range then
-    Get minimum sell price for still making a profit then
-    Get nearest current listing price above that
-    Then undercut and sell for that price
+
 
 Coords
 ----------
@@ -10,7 +6,7 @@ Mushroom
 	Coords		148,515
 	Size		24,24
 	Yes Button
-		Coords	30,557
+		Coords	30,557  -118,+42
 		Size	52,19
 		Mid		56,566	-92,+51
 
@@ -133,6 +129,9 @@ Item Buy/Sell Window
 	GoldCoin
 		Coords	462,280	462,304
 		Size	12,6
+    Vendor E
+        Coords  345,176 345,206
+        Size    6,2
     "Available"
         Coords  531,469 531,493
         Size    15,10
@@ -173,3 +172,7 @@ Item Buy/Sell Window
 		Coords	536,493 +28
 		Size	12,12
 		Mid		542,499
+    Partial Success OK
+        Coords  392,365
+        Size    116,18
+        Mid     450,374

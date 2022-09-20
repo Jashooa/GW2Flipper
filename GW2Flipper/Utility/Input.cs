@@ -149,7 +149,7 @@ internal static class Input
         SendInput(input);
     }
 
-    public static void MouseClick(Process process, MouseButton button, int delay = 50)
+    public static void MouseClick(Process process, MouseButton button, int delay = 75)
     {
         MouseButtonDown(process, button);
         Thread.Sleep(delay);
@@ -157,7 +157,7 @@ internal static class Input
         Thread.Sleep(delay);
     }
 
-    public static void MouseDoubleClick(Process process, MouseButton button, int delay = 50)
+    public static void MouseDoubleClick(Process process, MouseButton button, int delay = 75)
     {
         MouseButtonDown(process, button);
         Thread.Sleep(delay);
@@ -169,14 +169,14 @@ internal static class Input
         Thread.Sleep(delay);
     }
 
-    public static void MouseMoveAndClick(Process process, MouseButton button, int x, int y, int delay = 50)
+    public static void MouseMoveAndClick(Process process, MouseButton button, int x, int y, int delay = 75)
     {
         MouseMove(process, x, y);
         Thread.Sleep(delay);
         MouseClick(process, button, delay);
     }
 
-    public static void MouseMoveAndDoubleClick(Process process, MouseButton button, int x, int y, int delay = 50)
+    public static void MouseMoveAndDoubleClick(Process process, MouseButton button, int x, int y, int delay = 75)
     {
         MouseMove(process, x, y);
         Thread.Sleep(delay);
@@ -229,7 +229,7 @@ internal static class Input
         SendInput(input);
     }
 
-    public static void KeyPress(Process process, VirtualKeyCode keyCode, int delay = 25)
+    public static void KeyPress(Process process, VirtualKeyCode keyCode, int delay = 75)
     {
         KeyDown(process, keyCode);
         Thread.Sleep(delay);
@@ -237,7 +237,7 @@ internal static class Input
         Thread.Sleep(delay);
     }
 
-    public static void KeyPressWithModifier(Process process, VirtualKeyCode keyCode, bool alt, bool control, bool shift, int delay = 25)
+    public static void KeyPressWithModifier(Process process, VirtualKeyCode keyCode, bool alt, bool control, bool shift, int delay = 75)
     {
         if (alt)
         {
@@ -257,7 +257,7 @@ internal static class Input
             Thread.Sleep(delay);
         }
 
-        KeyPress(process, keyCode);
+        KeyPress(process, keyCode, delay);
 
         if (shift)
         {
@@ -334,7 +334,7 @@ internal static class Input
         SendInput(input);
     }
 
-    public static void KeyCharPress(Process process, char character, int delay = 25)
+    public static void KeyCharPress(Process process, char character, int delay = 75)
     {
         KeyCharDown(process, character);
         Thread.Sleep(delay);
@@ -342,7 +342,7 @@ internal static class Input
         Thread.Sleep(delay);
     }
 
-    public static void KeyStringSend(Process process, string text, int delay = 25)
+    public static void KeyStringSend(Process process, string text, int delay = 75)
     {
         foreach (var character in text)
         {
@@ -352,17 +352,10 @@ internal static class Input
 
     public static void KeyStringSendClipboard(Process process, string text)
     {
-        var clipboard = ClipboardService.GetText();
-
         ClipboardService.SetText(text);
         Thread.Sleep(50);
         KeyPressWithModifier(process, VirtualKeyCode.VK_V, false, true, false);
-        Thread.Sleep(50);
-
-        if (clipboard != null)
-        {
-            ClipboardService.SetText(clipboard);
-        }
+        ClipboardService.SetText(string.Empty);
     }
 
     public static void SendInput(INPUT input)
@@ -377,17 +370,10 @@ internal static class Input
 
     public static string? GetSelectedText(Process process)
     {
-        var clipboard = ClipboardService.GetText();
-
         KeyPressWithModifier(process, VirtualKeyCode.VK_C, false, true, false);
         Thread.Sleep(50);
         var text = ClipboardService.GetText();
-        Thread.Sleep(50);
-
-        if (clipboard != null)
-        {
-            ClipboardService.SetText(clipboard);
-        }
+        ClipboardService.SetText(string.Empty);
 
         return text;
     }
