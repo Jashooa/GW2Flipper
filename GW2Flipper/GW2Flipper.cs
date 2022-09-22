@@ -55,13 +55,13 @@ internal static class GW2Flipper
         // { "sell-max", "0" },
         { "buy-min", "1" },
         // { "buy-max", "500" },
-        { "profit-min", "20" },
+        { "profit-min", "10" },
         // { "profit-max", "0" },
-        { "profit-pct-min", "10" },
+        { "profit-pct-min", "5" },
         { "profit-pct-max", "50" },
         // { "supply-min", "0" },
         // { "supply-max", "0" },
-        // { "demand-min", "0" },
+        { "demand-min", "1000" },
         // { "demand-max", "0" },
         { "sold-day-min", "5000" },
         // { "sold-day-max", "0" },
@@ -134,7 +134,8 @@ internal static class GW2Flipper
     private static readonly bool BuyIfSelling = true;
     private static readonly bool CancelUndercutDuringBuy = true;
     private static readonly bool SellForBestIfUnderRange = true;
-    private static readonly int BuysPerSellLoop = 40;
+    private static readonly int BuysPerSellLoop = 30;
+    private static readonly bool OnlySellsMoreThanBuys = false;
 
     private static readonly List<BuyItem> BuyItemsList = new();
     private static readonly Connection ApiConnection = new(ApiKey);
@@ -144,7 +145,8 @@ internal static class GW2Flipper
     private static DateTime timeSinceLastAfkCheck = DateTime.MinValue;
     private static DateTime timeSinceLastBuyListGenerate = DateTime.MinValue;
     private static DateTime timeSinceLastSell = DateTime.MinValue;
-    private static int currentLoopIndex = 0;
+    private static DateTime timeSinceLastBuy = DateTime.MinValue;
+    private static int currentLoopIndex;
 
     private enum TradingPostScreen
     {
@@ -227,6 +229,16 @@ internal static class GW2Flipper
             {
                 try
                 {
+                    var howLongLastBuy = DateTime.Now - timeSinceLastBuy;
+                    if (howLongLastBuy < TimeSpan.FromMinutes(6))
+                    {
+                        ResetUI();
+                        var howLongWait = TimeSpan.FromMinutes(6) - howLongLastBuy;
+                        Logger.Info($"Sleeping for {howLongWait.TotalMinutes} minutes");
+                        await Task.Delay(howLongWait);
+                    }
+
+                    timeSinceLastBuy = DateTime.Now;
                     await UpdateBuyList();
                 }
                 catch (Exception e)
@@ -263,6 +275,7 @@ internal static class GW2Flipper
                 var howLongLastSell = DateTime.Now - timeSinceLastSell;
                 if (howLongLastSell < TimeSpan.FromMinutes(6))
                 {
+                    ResetUI();
                     var howLongWait = TimeSpan.FromMinutes(6) - howLongLastSell;
                     Logger.Info($"Sleeping for {howLongWait.TotalMinutes} minutes");
                     await Task.Delay(howLongWait);
@@ -282,13 +295,10 @@ internal static class GW2Flipper
                 CheckNewMap();
             }
 
-            /*if (currentLoopIndex >= BuyItemsList.Count)
-            {
-                var delay = Random.Next((int)TimeSpan.FromMinutes(2).TotalMilliseconds, (int)TimeSpan.FromMinutes(4).TotalMilliseconds);
+            /*var delay = Random.Next((int)TimeSpan.FromMinutes(2).TotalMilliseconds, (int)TimeSpan.FromMinutes(4).TotalMilliseconds);
 
-                Logger.Info($"Sleeping for {TimeSpan.FromMilliseconds(delay).TotalMinutes} minutes");
-                await Task.Delay(delay);
-            }*/
+            Logger.Info($"Sleeping for {TimeSpan.FromMilliseconds(delay).TotalMinutes} minutes");
+            await Task.Delay(delay);*/
         }
     }
 
@@ -334,6 +344,11 @@ internal static class GW2Flipper
                     var profit = int.Parse(item.SelectSingleNode("td[5]").InnerText);
                     var sold = int.Parse(item.SelectSingleNode("td[9]").InnerText, NumberStyles.AllowThousands);
                     var bought = int.Parse(item.SelectSingleNode("td[11]").InnerText, NumberStyles.AllowThousands);
+
+                    if (OnlySellsMoreThanBuys && sold < bought)
+                    {
+                        continue;
+                    }
 
                     var newItem = new BuyItem(itemId, itemName, buyPrice, sellPrice, profit, sold, bought);
 
@@ -449,13 +464,13 @@ internal static class GW2Flipper
         for (var i = 0; i < 10; i++)
         {
             Input.KeyPress(process!, VirtualKeyCode.ESCAPE);
-            Thread.Sleep(2000);
+            Thread.Sleep(1000);
 
-            if (ImageSearch.FindImageInFullWindow(process!, Resources.ReturnToGame, 0.8) != null)
+            if (ImageSearch.FindImageInFullWindow(process!, Resources.ReturnToGame, 0.6) != null)
             {
                 Logger.Info("Found escape menu");
                 Input.KeyPress(process!, VirtualKeyCode.ESCAPE);
-                Thread.Sleep(2000);
+                Thread.Sleep(1000);
                 return true;
             }
         }
@@ -548,7 +563,7 @@ internal static class GW2Flipper
 
     private static async Task CloseItemWindow()
     {
-        if (ImageSearch.FindImageInWindow(process!, Resources.Exit, tradingPostPoint!.Value.X + 769, tradingPostPoint!.Value.Y + 117, Resources.Exit.Width, Resources.Exit.Height, 0.9) != null)
+        if (ImageSearch.FindImageInWindow(process!, Resources.Exit, tradingPostPoint!.Value.X + 769, tradingPostPoint!.Value.Y + 117, Resources.Exit.Width, Resources.Exit.Height, 0.5) != null)
         {
             Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 777, tradingPostPoint!.Value.Y + 125);
         }
@@ -558,6 +573,8 @@ internal static class GW2Flipper
 
     private static async Task SearchForItem(Gw2Sharp.WebApi.V2.Models.Item itemInfo, TradingPostScreen screen)
     {
+        await Task.Delay(500);
+
         // Click search bar
         Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 163, tradingPostPoint!.Value.Y + 165);
 
@@ -605,9 +622,12 @@ internal static class GW2Flipper
             Input.KeyPress(process!, VirtualKeyCode.BACK);
         }
 
-        // Paste in name
-        Input.KeyStringSendClipboard(process!, itemInfo.Name.MaxSize(30));
-        Input.KeyPress(process!, VirtualKeyCode.RETURN);
+        if (ImageSearch.FindImageInWindow(process!, Resources.TradingPostLion, tradingPostPoint!.Value.X, tradingPostPoint!.Value.Y, Resources.TradingPostLion.Width, Resources.TradingPostLion.Height) != null)
+        {
+            // Paste in name
+            Input.KeyStringSendClipboard(process!, itemInfo.Name.MaxSize(30));
+            Input.KeyPress(process!, VirtualKeyCode.RETURN);
+        }
 
         if (screen == TradingPostScreen.Buy)
         {
@@ -638,11 +658,11 @@ internal static class GW2Flipper
         Input.KeyPress(process!, VirtualKeyCode.TAB);
         var copperAmount = Convert.ToInt32(Input.GetSelectedText(process!));*/
 
-        Input.MouseMoveAndDoubleClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 412, tradingPostPoint.Value.Y + 279 + offset);
+        Input.MouseMoveAndDoubleClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 412, tradingPostPoint.Value.Y + 279 + offset, 75);
         var goldAmount = Convert.ToInt32(Input.GetSelectedText(process!));
-        Input.MouseMoveAndDoubleClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 502, tradingPostPoint.Value.Y + 279 + offset);
+        Input.MouseMoveAndDoubleClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 502, tradingPostPoint.Value.Y + 279 + offset, 75);
         var silverAmount = Convert.ToInt32(Input.GetSelectedText(process!));
-        Input.MouseMoveAndDoubleClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 576, tradingPostPoint.Value.Y + 279 + offset);
+        Input.MouseMoveAndDoubleClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 576, tradingPostPoint.Value.Y + 279 + offset, 75);
         var copperAmount = Convert.ToInt32(Input.GetSelectedText(process!));
 
         return ToCurrency(goldAmount, silverAmount, copperAmount);
@@ -651,13 +671,13 @@ internal static class GW2Flipper
     private static int GetItemWindowPriceWithDismiss(int offset)
     {
         DismissSuccessWithOffset(offset);
-        Input.MouseMoveAndDoubleClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 412, tradingPostPoint.Value.Y + 279 + offset);
+        Input.MouseMoveAndDoubleClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 412, tradingPostPoint.Value.Y + 279 + offset, 75);
         var goldAmount = Convert.ToInt32(Input.GetSelectedText(process!));
         DismissSuccessWithOffset(offset);
-        Input.MouseMoveAndDoubleClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 502, tradingPostPoint.Value.Y + 279 + offset);
+        Input.MouseMoveAndDoubleClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 502, tradingPostPoint.Value.Y + 279 + offset, 75);
         var silverAmount = Convert.ToInt32(Input.GetSelectedText(process!));
         DismissSuccessWithOffset(offset);
-        Input.MouseMoveAndDoubleClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 576, tradingPostPoint.Value.Y + 279 + offset);
+        Input.MouseMoveAndDoubleClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 576, tradingPostPoint.Value.Y + 279 + offset, 75);
         var copperAmount = Convert.ToInt32(Input.GetSelectedText(process!));
 
         return ToCurrency(goldAmount, silverAmount, copperAmount);
@@ -668,15 +688,15 @@ internal static class GW2Flipper
         // Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 402, tradingPostPoint.Value.Y + 236 + offset);
         // Input.KeyPress(process!, VirtualKeyCode.TAB);
         DismissSuccessWithOffset(offset);
-        Input.MouseMoveAndDoubleClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 412, tradingPostPoint.Value.Y + 279 + offset);
+        Input.MouseMoveAndDoubleClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 412, tradingPostPoint.Value.Y + 279 + offset, 75);
         Input.KeyStringSend(process!, ToGold(coins).ToString());
         // Input.KeyPress(process!, VirtualKeyCode.TAB);
         DismissSuccessWithOffset(offset);
-        Input.MouseMoveAndDoubleClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 502, tradingPostPoint.Value.Y + 279 + offset);
+        Input.MouseMoveAndDoubleClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 502, tradingPostPoint.Value.Y + 279 + offset, 75);
         Input.KeyStringSend(process!, ToSilver(coins).ToString());
         // Input.KeyPress(process!, VirtualKeyCode.TAB);
         DismissSuccessWithOffset(offset);
-        Input.MouseMoveAndDoubleClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 576, tradingPostPoint.Value.Y + 279 + offset);
+        Input.MouseMoveAndDoubleClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 576, tradingPostPoint.Value.Y + 279 + offset, 75);
         Input.KeyStringSend(process!, ToCopper(coins).ToString());
     }
 
@@ -799,10 +819,9 @@ internal static class GW2Flipper
                 var resultPoint = ImageSearch.FindImageInWindow(process!, Resources.ResultCorner, resultsPoint.X, resultsPoint.Y + (y * 61), Resources.ResultCorner.Width, Resources.ResultCorner.Height);
                 if (resultPoint == null)
                 {
-                    Logger.Debug("Result border not found");
+                    Logger.Debug($"Result border not found at {resultsPoint.X}, {resultsPoint.Y + (y * 61)}, qtyPoint: {qtyPoint}");
                     LogImage();
-                    // break;
-                    goto SellItem;
+                    break;
                 }
 
                 // Click the result
@@ -1208,7 +1227,7 @@ internal static class GW2Flipper
                 var resultPoint = ImageSearch.FindImageInWindow(process!, Resources.ResultCorner, resultsPoint.X, resultsPoint.Y + (y * 61), Resources.ResultCorner.Width, Resources.ResultCorner.Height);
                 if (resultPoint == null)
                 {
-                    Logger.Debug("Result border not found");
+                    Logger.Debug($"Result border not found at {resultsPoint.X}, {resultsPoint.Y + (y * 61)}, qtyPoint: {qtyPoint}");
                     LogImage();
                     break;
                 }
@@ -1224,6 +1243,7 @@ internal static class GW2Flipper
                 catch (TimeoutException)
                 {
                     Logger.Warn("Item border didn't appear");
+                    LogImage();
                     await CloseItemWindow();
                     // break;
                     goto BuyItem;
@@ -1361,6 +1381,15 @@ internal static class GW2Flipper
                 var buyPrice = buyCurrencyAmount!.Value;
                 var sellPrice = sellCurrencyAmount!.Value;
 
+                // Check profit is within range
+                var profit = GetProfit(buyPrice, sellPrice);
+                if (profit < (item.Profit * ErrorRange) || profit < 5)
+                {
+                    Logger.Info($"Profit of {profit} outside of range");
+                    await CloseItemWindow();
+                    break;
+                }
+
                 if (UndercutBuys)
                 {
                     buyPrice++;
@@ -1369,15 +1398,6 @@ internal static class GW2Flipper
                 if (UndercutSells)
                 {
                     sellPrice--;
-                }
-
-                // Check profit is within range
-                var profit = GetProfit(buyPrice, sellPrice);
-                if (profit < (item.Profit * ErrorRange))
-                {
-                    Logger.Info($"Profit of {profit} outside of range");
-                    await CloseItemWindow();
-                    break;
                 }
 
                 if (UndercutBuys)
@@ -1465,8 +1485,17 @@ internal static class GW2Flipper
                     break;
                 }
 
+                // Wait for load more button to appear
                 Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 650, tradingPostPoint!.Value.Y + 688);
-                await Task.Delay(5000);
+                await Task.Delay(100);
+                try
+                {
+                    await WaitWhile(() => ImageSearch.FindImageInWindow(process!, Resources.LoadMore, tradingPostPoint!.Value.X + 610, tradingPostPoint!.Value.Y + 679, Resources.LoadMore.Width, Resources.LoadMore.Height, 0.5) == null, 500, 2000);
+                }
+                catch (TimeoutException)
+                {
+                    break;
+                }
             }
 
             Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 174, tradingPostPoint!.Value.Y + 240);
@@ -1493,8 +1522,17 @@ internal static class GW2Flipper
                 break;
             }
 
+            // Wait for load more button to appear
             Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 650, tradingPostPoint!.Value.Y + 688);
-            await Task.Delay(5000);
+            await Task.Delay(100);
+            try
+            {
+                await WaitWhile(() => ImageSearch.FindImageInWindow(process!, Resources.LoadMore, tradingPostPoint!.Value.X + 610, tradingPostPoint!.Value.Y + 679, Resources.LoadMore.Width, Resources.LoadMore.Height, 0.5) == null, 500, 2000);
+            }
+            catch (TimeoutException)
+            {
+                break;
+            }
         }
 
         // Search
@@ -1753,8 +1791,8 @@ internal static class GW2Flipper
         }
 
         Logger.Info("Moving for anti-afk");
-        Input.KeyPress(process!, VirtualKeyCode.VK_S);
-        Input.KeyPress(process!, VirtualKeyCode.VK_W);
+        Input.KeyPress(process!, VirtualKeyCode.LEFT);
+        Input.KeyPress(process!, VirtualKeyCode.RIGHT);
         timeSinceLastAfkCheck = DateTime.Now;
     }
 
@@ -1880,7 +1918,7 @@ internal static class GW2Flipper
                 _ = Directory.CreateDirectory(directory);
             }
 
-            var fileName = Path.Combine(directory, $"{DateTime.Now.ToString("s").Replace(":", string.Empty)}.png");
+            var fileName = Path.Combine(directory, $"{DateTime.Now:HH-mm-ss-ffff}.png");
             Logger.Error($"File saved as {fileName}");
             image.Save(fileName, ImageFormat.Png);
         }
@@ -1902,7 +1940,7 @@ internal static class GW2Flipper
                 _ = Directory.CreateDirectory(directory);
             }
 
-            var fileName = Path.Combine(directory, $"{DateTime.Now.ToString("s").Replace(":", string.Empty)}.bmp");
+            var fileName = Path.Combine(directory, $"{DateTime.Now.ToString("HH-mm-ss-ffff").Replace(":", string.Empty)}.bmp");
             Logger.Error($"File saved as {fileName}");
             image.Save(fileName, ImageFormat.Bmp);
         }
