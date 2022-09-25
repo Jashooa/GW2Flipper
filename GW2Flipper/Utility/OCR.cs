@@ -5,8 +5,6 @@ using System.Drawing.Imaging;
 
 using global::GW2Flipper.Extensions;
 
-using IronOcr;
-
 using NLog;
 
 using TesseractOCR;
@@ -15,13 +13,21 @@ internal static class OCR
 {
     private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
+    private static readonly Dictionary<string, string> StringFixes = new()
+    {
+        { "Uscku's", "Usoku's" },
+        { " Qil", " Oil" },
+        { "lcebrood", "Icebrood" },
+        { "Baim", "Balm" },
+    };
+
     public static string ReadName(Bitmap bitmap, Color color)
     {
         using var engine = new Engine("./tessdata", "eng_best", TesseractOCR.Enums.EngineMode.Default);
         _ = engine.SetVariable("tessedit_char_whitelist", "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890 + -—/ '\",()");
 
         var ms = new MemoryStream();
-        bitmap.BinarizeByColor(color, 0.55).Save(ms, ImageFormat.Bmp);
+        bitmap.BinarizeByColor(color, 0.52).Save(ms, ImageFormat.Bmp);
         var image = TesseractOCR.Pix.Image.LoadFromMemory(ms).Scale(3.125f, 3.125f);
 
         using var page = engine.Process(image, TesseractOCR.Enums.PageSegMode.SingleBlock);
@@ -31,52 +37,37 @@ internal static class OCR
         if (page.MeanConfidence < 0.1)
         {
             Logger.Debug($"Mean confidence: {page.MeanConfidence} !!!!!!!!!");
-            // image.Save($"./logs/images/{DateTime.Now.ToString("s").Replace(":", string.Empty)}_OCR.png", TesseractOCR.Enums.ImageFormat.Png);
+            // image.Save($"./logs/images/{DateTime.Now:HH-mm-ss-ffff}_OCR.png", TesseractOCR.Enums.ImageFormat.Png);
         }
         else if (page.MeanConfidence < 0.9)
         {
             Logger.Debug($"Mean confidence: {page.MeanConfidence} !!!");
+            // image.Save($"./logs/images/{DateTime.Now:HH-mm-ss-ffff}_OCR.png", TesseractOCR.Enums.ImageFormat.Png);
         }
         else
         {
             Logger.Debug($"Mean confidence: {page.MeanConfidence}");
         }
 
+        text = StringRepair(text);
         Logger.Debug($"Text: {text}");
 
         return text;
     }
 
-    public static string ReadNumber(Bitmap bitmap)
+    private static string StringRepair(string text)
     {
-        using var engine = new Engine("./tessdata", TesseractOCR.Enums.Language.English, TesseractOCR.Enums.EngineMode.Default);
-        _ = engine.SetVariable("tessedit_char_whitelist", "1234567890");
-        _ = engine.SetVariable("classify_bln_numeric_mode", "1");
+        text += '\n';
 
-        var ms = new MemoryStream();
-        bitmap.Invert().Save(ms, ImageFormat.Bmp);
-        var image = TesseractOCR.Pix.Image.LoadFromMemory(ms).Scale(3.0f, 3.0f).ConvertRGBToGray();
-
-        using var page = engine.Process(image, TesseractOCR.Enums.PageSegMode.SingleBlock);
-
-        var text = page.Text;
-
-        if (page.MeanConfidence < 0.9)
+        foreach (var fix in StringFixes)
         {
-            Logger.Debug($"Mean confidence: {page.MeanConfidence} !!!!!!!!!");
-            // image.Save($"./logs/images/{DateTime.Now.ToString("s").Replace(":", string.Empty)}.png", TesseractOCR.Enums.ImageFormat.Png);
-        }
-        else
-        {
-            Logger.Debug($"Mean confidence: {page.MeanConfidence}");
+            text = text.Replace(fix.Key, fix.Value);
         }
 
-        Logger.Debug($"Text: {text}");
-
-        return text;
+        return text.Trim();
     }
 
-    public static string ReadNameIron(Bitmap bitmap, Color color)
+    /*public static string ReadNameIron(Bitmap bitmap, Color color)
     {
         var ocr = new IronTesseract();
         // ocr.Configuration.WhiteListCharacters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890 +-/'\",()";
@@ -91,7 +82,7 @@ internal static class OCR
         if (result.Confidence < 90)
         {
             Logger.Debug($"Mean confidence: {result.Confidence} !!!!!!!!!");
-            // _ = input.SaveAsImages($"{DateTime.Now.ToString("s").Replace(":", string.Empty)}");
+            // _ = input.SaveAsImages($"{DateTime.Now:HH-mm-ss-ffff}");
         }
         else
         {
@@ -124,7 +115,7 @@ internal static class OCR
         if (result.Confidence < 90)
         {
             Logger.Debug($"Mean confidence: {result.Confidence} !!!!!!!!!");
-            // _ = input.SaveAsImages($"{DateTime.Now.ToString("s").Replace(":", string.Empty)}");
+            // _ = input.SaveAsImages($"{DateTime.Now:HH-mm-ss-ffff}");
         }
         else
         {
@@ -134,5 +125,5 @@ internal static class OCR
         Logger.Debug($"Text: {text}");
 
         return text;
-    }
+    }*/
 }

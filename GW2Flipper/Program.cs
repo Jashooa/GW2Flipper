@@ -9,8 +9,9 @@ internal static class Program
     private static async Task Main()
     {
         SetupLogger();
+        Config.Load();
         await GW2Flipper.Run();
-        Console.ReadKey();
+        _ = Console.ReadKey();
     }
 
     private static void SetupLogger()
@@ -32,7 +33,7 @@ internal static class Program
             Layout = "[${longdate}][${level:format=FirstCharacter}](${logger}) ${message} ${onexception:${newline}${exception:format=tostring,data}}",
         };
 
-        var consoleRule = new LoggingRule("*", LogLevel.Debug, consoleTarget);
+        var consoleRule = new LoggingRule("*", LogLevel.Info, consoleTarget);
         var fileRule = new LoggingRule("*", LogLevel.Debug, fileTarget);
 
         config.LoggingRules.Add(consoleRule);

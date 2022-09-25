@@ -25,4 +25,6 @@ internal class BuyItem
     public int Sold { get; set; }
 
     public int Bought { get; set; }
+
+    public override string ToString() => $"[{Id}] {Name} Buy: {BuyPrice} Sell: {SellPrice} Profit: {Profit} Bought: {Bought} Sold: {Sold}";
 }

@@ -2,6 +2,8 @@ namespace GW2Flipper.Native;
 
 using System.Runtime.InteropServices;
 
+#pragma warning disable CS0649
+
 /// <summary>
 /// Specifies the type of the input event. This member can be one of the following values.
 /// </summary>
@@ -302,3 +304,5 @@ internal struct HARDWAREINPUT
     /// </summary>
     public ushort ParamH;
 }
+
+#pragma warning restore CS0649

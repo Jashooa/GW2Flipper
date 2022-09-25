@@ -21,81 +21,13 @@ using NLog;
 
 internal static class GW2Flipper
 {
-    private const string ApiKey = "2A39D94B-053F-D84C-8D1C-2A9DC4E2C0917D50A41E-04D9-48B9-8133-FE968904C987";
-
     private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
+    private static readonly Config Config = Config.Instance!;
 
-    private static readonly Dictionary<string, string> LowCostArguments = new()
-    {
-        { "sell-min", "100" },
-        // { "sell-max", "0" },
-        { "buy-min", "1" },
-        { "buy-max", "500" },
-        { "profit-min", "100" },
-        // { "profit-max", "0" },
-        { "profit-pct-min", "10" },
-        { "profit-pct-max", "50" },
-        // { "supply-min", "0" },
-        // { "supply-max", "0" },
-        // { "demand-min", "0" },
-        // { "demand-max", "0" },
-        { "sold-day-min", "200" },
-        // { "sold-day-max", "0" },
-        { "bought-day-min", "50" },
-        // { "bought-day-max", "0" },
-        // { "offers-day-min", "0" },
-        // { "offers-day-max", "0" },
-        // { "bids-day-min", "0" },
-        // { "bids-day-max", "0" },
-    };
-
-    private static readonly Dictionary<string, string> VeryFastArguments = new()
-    {
-        { "sell-min", "1" },
-        // { "sell-max", "0" },
-        { "buy-min", "1" },
-        // { "buy-max", "500" },
-        { "profit-min", "10" },
-        // { "profit-max", "0" },
-        { "profit-pct-min", "5" },
-        { "profit-pct-max", "50" },
-        // { "supply-min", "0" },
-        // { "supply-max", "0" },
-        { "demand-min", "1000" },
-        // { "demand-max", "0" },
-        { "sold-day-min", "5000" },
-        // { "sold-day-max", "0" },
-        { "bought-day-min", "1000" },
-        // { "bought-day-max", "0" },
-        // { "offers-day-min", "0" },
-        // { "offers-day-max", "0" },
-        // { "bids-day-min", "0" },
-        // { "bids-day-max", "0" },
-    };
-
-    private static readonly Dictionary<string, string> MediumArguments = new()
-    {
-        { "sell-min", "100" },
-        // { "sell-max", "0" },
-        { "buy-min", "1" },
-        { "buy-max", "100000" },
-        { "profit-min", "500" },
-        // { "profit-max", "0" },
-        { "profit-pct-min", "10" },
-        { "profit-pct-max", "50" },
-        // { "supply-min", "0" },
-        // { "supply-max", "0" },
-        // { "demand-min", "0" },
-        // { "demand-max", "0" },
-        { "sold-day-min", "200" },
-        // { "sold-day-max", "0" },
-        { "bought-day-min", "50" },
-        // { "bought-day-max", "0" },
-        // { "offers-day-min", "0" },
-        // { "offers-day-max", "0" },
-        // { "bids-day-min", "0" },
-        // { "bids-day-max", "0" },
-    };
+    private static readonly List<BuyItem> BuyItemsList = new();
+    private static readonly List<BuyItem> RemoveItemsList = new();
+    private static readonly Connection ApiConnection = new(Config.ApiKey);
+    private static readonly Random Random = new();
 
     private static readonly Dictionary<string, Color> RarityColors = new()
     {
@@ -106,9 +38,6 @@ internal static class GW2Flipper
         { "Exotic", Color.FromArgb(238, 155, 3) },
         { "Ascended", Color.FromArgb(233, 67, 125) },
         { "Legendary", Color.FromArgb(160, 46, 247) },
-        { "Gold", Color.FromArgb(253, 200, 78) },
-        { "Silver", Color.FromArgb(180, 180, 180) },
-        { "Copper", Color.FromArgb(202, 121, 66) },
     };
 
     private static readonly Dictionary<string, int> RarityOrder = new()
@@ -123,23 +52,6 @@ internal static class GW2Flipper
         { "Legendary", 7 },
     };
 
-    private static readonly List<Dictionary<string, string>> WhichArguments = new() { MediumArguments };
-    private static readonly bool UndercutBuys = true;
-    private static readonly bool UndercutSells = true;
-    private static readonly double Quantity = 0.02;
-    private static readonly int MaxSpend = 100000;
-    private static readonly double ErrorRange = 0.8;
-    private static readonly double ErrorRangeInverse = 1 + 1 - ErrorRange;
-    private static readonly double ProfitRange = 0.5;
-    private static readonly bool BuyIfSelling = true;
-    private static readonly bool CancelUndercutDuringBuy = true;
-    private static readonly bool SellForBestIfUnderRange = true;
-    private static readonly int BuysPerSellLoop = 30;
-    private static readonly bool OnlySellsMoreThanBuys = false;
-
-    private static readonly List<BuyItem> BuyItemsList = new();
-    private static readonly Connection ApiConnection = new(ApiKey);
-    private static readonly Random Random = new();
     private static Process? process;
     private static Point? tradingPostPoint;
     private static DateTime timeSinceLastAfkCheck = DateTime.MinValue;
@@ -189,20 +101,6 @@ internal static class GW2Flipper
 
         using var apiClient = new Gw2Client(ApiConnection);
 
-        /*while (true)
-        {
-            try
-            {
-                var amount = GetItemWindowPrice(0);
-                Logger.Info(amount);
-            }
-            catch (Exception e)
-            {
-                Logger.Error(e);
-                return;
-            }
-        }*/
-
         while (true)
         {
             if (Array.Find(Process.GetProcessesByName("Gw2-64"), p => p.SessionId == Process.GetCurrentProcess().SessionId) == null)
@@ -225,6 +123,19 @@ internal static class GW2Flipper
                 return;
             }
 
+            try
+            {
+                if (ResetUI())
+                {
+                    AntiAfk();
+                    CheckNewMap();
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Error(e);
+            }
+
             if (currentLoopIndex >= BuyItemsList.Count)
             {
                 try
@@ -232,7 +143,7 @@ internal static class GW2Flipper
                     var howLongLastBuy = DateTime.Now - timeSinceLastBuy;
                     if (howLongLastBuy < TimeSpan.FromMinutes(6))
                     {
-                        ResetUI();
+                        _ = ResetUI();
                         var howLongWait = TimeSpan.FromMinutes(6) - howLongLastBuy;
                         Logger.Info($"Sleeping for {howLongWait.TotalMinutes} minutes");
                         await Task.Delay(howLongWait);
@@ -247,17 +158,20 @@ internal static class GW2Flipper
                 }
 
                 currentLoopIndex = 0;
-            }
 
-            if (!CancelUndercutDuringBuy)
-            {
-                try
+                if (Config.RemoveUnprofitable && RemoveItemsList.Count > 0)
                 {
-                    await CancelUndercut();
-                }
-                catch (Exception e)
-                {
-                    Logger.Error(e);
+                    try
+                    {
+                        await CancelUnprofitable();
+                    }
+                    catch (Exception e)
+                    {
+                        Logger.Error(e);
+                    }
+
+                    RemoveItemsList.Clear();
+                    _ = ResetUI();
                 }
             }
 
@@ -275,7 +189,7 @@ internal static class GW2Flipper
                 var howLongLastSell = DateTime.Now - timeSinceLastSell;
                 if (howLongLastSell < TimeSpan.FromMinutes(6))
                 {
-                    ResetUI();
+                    _ = ResetUI();
                     var howLongWait = TimeSpan.FromMinutes(6) - howLongLastSell;
                     Logger.Info($"Sleeping for {howLongWait.TotalMinutes} minutes");
                     await Task.Delay(howLongWait);
@@ -288,17 +202,6 @@ internal static class GW2Flipper
             {
                 Logger.Error(e);
             }
-
-            if (ResetUI())
-            {
-                AntiAfk();
-                CheckNewMap();
-            }
-
-            /*var delay = Random.Next((int)TimeSpan.FromMinutes(2).TotalMilliseconds, (int)TimeSpan.FromMinutes(4).TotalMilliseconds);
-
-            Logger.Info($"Sleeping for {TimeSpan.FromMilliseconds(delay).TotalMinutes} minutes");
-            await Task.Delay(delay);*/
         }
     }
 
@@ -313,7 +216,9 @@ internal static class GW2Flipper
 
         timeSinceLastBuyListGenerate = DateTime.Now;
 
-        foreach (var arguments in WhichArguments)
+        List<BuyItem> newItemsList = new();
+
+        foreach (var arguments in Config.Arguments)
         {
             for (var page = 1; page < 10; page++)
             {
@@ -345,25 +250,52 @@ internal static class GW2Flipper
                     var sold = int.Parse(item.SelectSingleNode("td[9]").InnerText, NumberStyles.AllowThousands);
                     var bought = int.Parse(item.SelectSingleNode("td[11]").InnerText, NumberStyles.AllowThousands);
 
-                    if (OnlySellsMoreThanBuys && sold < bought)
+                    if (Config.IgnoreSellsLessThanBuys && (sold * Config.ErrorRangeInverse) < bought)
                     {
+                        continue;
+                    }
+
+                    if (Config.Blacklist.Contains(itemId))
+                    {
+                        Logger.Debug($"Removing blacklisted item: [{itemId}] {itemName}");
                         continue;
                     }
 
                     var newItem = new BuyItem(itemId, itemName, buyPrice, sellPrice, profit, sold, bought);
 
-                    // Add or update here
-                    var findIndex = BuyItemsList.FindIndex(x => x.Id == itemId);
-                    if (findIndex != -1)
+                    if (Config.RemoveUnprofitable)
                     {
-                        BuyItemsList[findIndex] = newItem;
+                        newItemsList.Add(newItem);
                     }
                     else
                     {
-                        BuyItemsList.Add(newItem);
+                        // Add or update here
+                        var findIndex = BuyItemsList.FindIndex(x => x.Id == itemId);
+                        if (findIndex != -1)
+                        {
+                            BuyItemsList[findIndex] = newItem;
+                        }
+                        else
+                        {
+                            BuyItemsList.Add(newItem);
+                        }
                     }
                 }
             }
+        }
+
+        if (Config.RemoveUnprofitable)
+        {
+            foreach (var item in BuyItemsList.ToList())
+            {
+                if (newItemsList.FindIndex(x => x.Id == item.Id) == -1)
+                {
+                    RemoveItemsList.Add(item);
+                }
+            }
+
+            BuyItemsList.Clear();
+            BuyItemsList.AddRange(newItemsList);
         }
 
         BuyItemsList.Sort((x, y) => y.Profit.CompareTo(x.Profit));
@@ -418,16 +350,17 @@ internal static class GW2Flipper
 
     private static async Task OpenTradingPost()
     {
-        var point = ImageSearch.FindImageInWindow(process!, Resources.TradingPostLion, tradingPostPoint!.Value.X, tradingPostPoint!.Value.Y, Resources.TradingPostLion.Width, Resources.TradingPostLion.Height);
+        var lionPoint = ImageSearch.FindImageInWindow(process!, Resources.TradingPostLion, tradingPostPoint!.Value.X, tradingPostPoint!.Value.Y, Resources.TradingPostLion.Width, Resources.TradingPostLion.Height);
+        var homePoint = ImageSearch.FindImageInWindow(process!, Resources.Home, tradingPostPoint!.Value.X + 377, tradingPostPoint!.Value.Y + 58, Resources.Home.Width, Resources.Home.Height, 0.9);
 
-        if (point == null)
+        if (lionPoint == null || homePoint == null)
         {
             Logger.Info("Lost sight of trading post");
             Input.KeyPress(process!, VirtualKeyCode.VK_F);
 
             try
             {
-                await WaitWhile(() => ImageSearch.FindImageInFullWindow(process!, Resources.TradingPostHome, 0.9) == null, 500, 5000);
+                await WaitWhile(() => ImageSearch.FindImageInFullWindow(process!, Resources.Home, 0.9) == null, 500, 5000);
             }
             catch (TimeoutException)
             {
@@ -437,7 +370,7 @@ internal static class GW2Flipper
 
                     try
                     {
-                        await WaitWhile(() => ImageSearch.FindImageInFullWindow(process!, Resources.TradingPostHome, 0.9) == null, 500, 5000);
+                        await WaitWhile(() => ImageSearch.FindImageInFullWindow(process!, Resources.Home, 0.9) == null, 500, 5000);
                     }
                     catch (TimeoutException)
                     {
@@ -460,17 +393,18 @@ internal static class GW2Flipper
     private static bool ResetUI()
     {
         Logger.Info("Attempting reset UI");
+        Input.MouseMove(process!, 540, 0);
 
         for (var i = 0; i < 10; i++)
         {
             Input.KeyPress(process!, VirtualKeyCode.ESCAPE);
-            Thread.Sleep(1000);
+            Thread.Sleep(500);
 
-            if (ImageSearch.FindImageInFullWindow(process!, Resources.ReturnToGame, 0.6) != null)
+            if (ImageSearch.FindImageInFullWindow(process!, Resources.ReturnToGame, 0.9) != null)
             {
                 Logger.Info("Found escape menu");
                 Input.KeyPress(process!, VirtualKeyCode.ESCAPE);
-                Thread.Sleep(1000);
+                Thread.Sleep(500);
                 return true;
             }
         }
@@ -563,6 +497,8 @@ internal static class GW2Flipper
 
     private static async Task CloseItemWindow()
     {
+        Input.MouseMove(process!, tradingPostPoint!.Value.X + 777, tradingPostPoint!.Value.Y + 140);
+        await Task.Delay(100);
         if (ImageSearch.FindImageInWindow(process!, Resources.Exit, tradingPostPoint!.Value.X + 769, tradingPostPoint!.Value.Y + 117, Resources.Exit.Width, Resources.Exit.Height, 0.5) != null)
         {
             Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 777, tradingPostPoint!.Value.Y + 125);
@@ -646,6 +582,8 @@ internal static class GW2Flipper
             // Click filter cog to close
             Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 287, tradingPostPoint!.Value.Y + 165);
         }
+
+        await Task.Delay(1000);
     }
 
     private static int GetItemWindowPrice(int offset)
@@ -700,6 +638,601 @@ internal static class GW2Flipper
         Input.KeyStringSend(process!, ToCopper(coins).ToString());
     }
 
+    private static async Task SellItemNonApi(BuyItem item, List<Gw2Sharp.WebApi.V2.Models.CommerceTransactionCurrent>? currentSellingList = null)
+    {
+        using var apiClient = new Gw2Client(ApiConnection);
+
+        // Get item info
+        Gw2Sharp.WebApi.V2.Models.Item? itemInfo = null;
+        try
+        {
+            itemInfo = await apiClient.WebApi.V2.Items.GetAsync(item.Id);
+        }
+        catch (Exception e)
+        {
+            Logger.Error(e);
+            return;
+        }
+
+        if (itemInfo == null)
+        {
+            Logger.Warn("itemInfo null");
+            return;
+        }
+
+        try
+        {
+            await GoToScreen(TradingPostScreen.Sell);
+        }
+        catch (TimeoutException)
+        {
+            Logger.Debug("Timeout on GoToScreen");
+            return;
+        }
+
+        // Search
+        try
+        {
+            await SearchForItem(itemInfo, TradingPostScreen.Sell);
+        }
+        catch (TimeoutException)
+        {
+            Logger.Warn("Filter didn't appear");
+            return;
+        }
+
+        // Wait for search results to load
+        try
+        {
+            await WaitWhile(FindSearchResultsLoaded, 500, 5000);
+        }
+        catch (TimeoutException)
+        {
+            Logger.Error("Didn't load any search results");
+            LogImage();
+            return;
+        }
+
+        // Check if no item found
+        if (ImageSearch.FindImageInWindow(process!, Resources.NoItems, tradingPostPoint!.Value.X + 494, tradingPostPoint.Value.Y + 376, Resources.NoItems.Width, Resources.NoItems.Height + 72, 0.8) != null)
+        {
+            Logger.Debug("No item found");
+            return;
+        }
+
+        // Find position of Qty to determine position of search results
+        var qtyPoint = ImageSearch.FindImageInWindow(process!, Resources.Qty, tradingPostPoint!.Value.X + 324, tradingPostPoint!.Value.Y + 155, Resources.Qty.Width, Resources.Qty.Height + 72, 0.9);
+        if (qtyPoint == null)
+        {
+            Logger.Warn("qtyPoint null");
+            LogImage();
+            return;
+        }
+
+        var resultsPoint = Point.Add(qtyPoint.Value, new Size(-2, 22));
+
+        for (var y = 0; y < 7; y++)
+        {
+            var attempts = 0;
+            SellItem:
+            if (attempts >= 5)
+            {
+                break;
+            }
+
+            attempts++;
+
+            // Find the item border of the result
+            var resultPoint = ImageSearch.FindImageInWindow(process!, Resources.ResultCorner, resultsPoint.X, resultsPoint.Y + (y * 61), Resources.ResultCorner.Width, Resources.ResultCorner.Height);
+            if (resultPoint == null)
+            {
+                Logger.Debug($"Result border not found at {resultsPoint.X}, {resultsPoint.Y + (y * 61)}, qtyPoint: {qtyPoint}");
+                LogImage();
+                break;
+            }
+
+            // Click the result
+            Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, resultsPoint.X + 28, resultsPoint.Y + 27 + (y * 61));
+
+            // Wait for the item border to show up
+            try
+            {
+                await WaitWhile(FindItemBorder, 500, 5000);
+            }
+            catch (TimeoutException)
+            {
+                Logger.Warn("Item border didn't appear");
+                LogImage();
+                await CloseItemWindow();
+                goto SellItem;
+            }
+
+            DismissSuccess();
+
+            // Wait for "vendor" to show up
+            try
+            {
+                await WaitWhile(FindVendorE, 500, 5000);
+            }
+            catch (TimeoutException)
+            {
+                Logger.Warn("Vendor E didn't appear");
+                LogImage();
+                await CloseItemWindow();
+                goto SellItem;
+            }
+
+            DismissSuccess();
+
+            // Find position of 'e' in Vendor to set the offset for other UI positions
+            var vendorEPos = ImageSearch.FindImageInWindow(process!, Resources.VendorE, tradingPostPoint!.Value.X + 345, tradingPostPoint!.Value.Y + 176, Resources.VendorE.Width, Resources.VendorE.Height + 30, 0.9);
+            if (vendorEPos == null)
+            {
+                Logger.Warn("vendorEPos null");
+                LogImage();
+                await CloseItemWindow();
+                goto SellItem;
+            }
+
+            var offset = 0;
+            var nameSize = 34;
+            if (vendorEPos.Value.Y == tradingPostPoint!.Value.Y + 206)
+            {
+                offset = 24;
+                nameSize = 64;
+            }
+
+            // Get OCR of item name and check if it matches API name
+            var nameImage = ImageSearch.CaptureWindow(process!, tradingPostPoint!.Value.X + 334, tradingPostPoint.Value.Y + 136, 428, nameSize);
+            var capturedName = OCR.ReadName(nameImage!, RarityColors[itemInfo.Rarity.ToString()!]);
+            if (string.IsNullOrEmpty(capturedName))
+            {
+                Logger.Debug("Empty string returned");
+                LogImage();
+                await CloseItemWindow();
+                continue;
+            }
+
+            // Check string simlarity
+            var jw = new JaroWinkler();
+            var nameDistance = 1.0 - jw.Distance(itemInfo.Name.RemoveDiacritics().ToLower(), capturedName.ToLower());
+            Logger.Debug($"Item name: {itemInfo.Name} Captured name: {capturedName} Distance: {nameDistance}");
+            if (nameDistance < 1.0)
+            {
+                Logger.Debug("String distance below 1");
+                LogImage();
+            }
+
+            if (nameDistance < Config.MinStringSimilarity)
+            {
+                Logger.Debug("Item name too different");
+                await CloseItemWindow();
+                continue;
+            }
+
+            DismissSuccessWithOffset(offset);
+
+            // Wait for available to show up
+            try
+            {
+                await WaitWhile(FindAvailable, 500, 10000);
+            }
+            catch (TimeoutException)
+            {
+                Logger.Warn("Available didn't appear");
+                await CloseItemWindow();
+                goto SellItem;
+            }
+
+            int? buyCurrencyAmount = null;
+            int? sellCurrencyAmount = null;
+
+            // Get buy price
+            try
+            {
+                buyCurrencyAmount = GetItemWindowPriceWithDismiss(offset);
+            }
+            catch (FormatException e)
+            {
+                Logger.Error(e);
+                LogImage();
+                await CloseItemWindow();
+                goto SellItem;
+            }
+
+            DismissSuccessWithOffset(offset);
+
+            // Click highest current seller
+            await Task.Delay(100);
+            Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint.Value.X + 542, tradingPostPoint.Value.Y + 499 + offset);
+
+            // Get sell price
+            try
+            {
+                sellCurrencyAmount = GetItemWindowPriceWithDismiss(offset);
+            }
+            catch (FormatException e)
+            {
+                Logger.Error(e);
+                LogImage();
+                await CloseItemWindow();
+                goto SellItem;
+            }
+
+            Logger.Info($"Highest buyer: {buyCurrencyAmount}");
+            Logger.Info($"Lowest seller: {sellCurrencyAmount}");
+
+            // Check if prices are wrong
+            if ((sellCurrencyAmount > item.SellPrice * Config.ErrorRangeInverse || sellCurrencyAmount < item.SellPrice * Config.ErrorRange)
+                && (buyCurrencyAmount > item.BuyPrice * Config.ErrorRangeInverse || buyCurrencyAmount < item.BuyPrice * Config.ErrorRange))
+            {
+                Logger.Info("Sell & buy price too different");
+                await CloseItemWindow();
+                continue;
+            }
+
+            // Check if sell price is within range
+            /*if (sellCurrencyAmount < item.SellPrice * ErrorRange)
+            {
+                Logger.Info($"Sell price {sellCurrencyAmount} below range {item.SellPrice * ErrorRange}");
+                await CloseItemWindow();
+                break;
+            }*/
+
+            var buyPrice = buyCurrencyAmount!.Value;
+            var sellPrice = sellCurrencyAmount!.Value;
+
+            if (Config.UndercutBuys)
+            {
+                buyPrice++;
+            }
+
+            DismissSuccessWithOffset(offset);
+
+            // Check profit is within range
+            var profit = GetProfit(item.BuyPrice, sellPrice);
+            var lowestProfit = (int)(item.Profit * Config.ProfitRange);
+            if (profit < lowestProfit)
+            {
+                Logger.Info($"Profit of {profit} outside of range");
+
+                // Find best price in range and undercut that instead
+                if (Config.SellForBestIfUnderRange)
+                {
+                    Logger.Info($"Selling for best near profit range {lowestProfit}");
+                    var listings = await apiClient.WebApi.V2.Commerce.Listings.GetAsync(item.Id);
+
+                    var profitableSell = GetSellPriceForProfit(item.BuyPrice, lowestProfit);
+                    sellPrice = listings.Sells.Where(x => x.UnitPrice >= profitableSell).Min(x => x.UnitPrice);
+
+                    SetItemWindowPrice(offset, sellPrice);
+
+                    // Check entered price
+                    int? enteredAmount = null;
+                    try
+                    {
+                        enteredAmount = GetItemWindowPriceWithDismiss(offset);
+                    }
+                    catch (FormatException e)
+                    {
+                        Logger.Error(e);
+                        LogImage();
+                        await CloseItemWindow();
+                        goto SellItem;
+                    }
+
+                    if (enteredAmount != sellPrice)
+                    {
+                        Logger.Debug("Didn't enter price correctly");
+                        await CloseItemWindow();
+                        goto SellItem;
+                    }
+                }
+                else
+                {
+                    await CloseItemWindow();
+                    break;
+                }
+            }
+
+            // Check if not my listing
+            if ((Config.UndercutSells && currentSellingList == null) || (Config.UndercutSells && currentSellingList?.Any(x => x.ItemId == item.Id && x.Price == sellCurrencyAmount) == false))
+            {
+                // Click to -1 copper
+                Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint.Value.X + 593, tradingPostPoint.Value.Y + 283 + offset);
+                sellPrice--;
+            }
+
+            // Set quantity to max
+            Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 625, tradingPostPoint.Value.Y + 240 + offset);
+            await Task.Delay(100);
+            Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 625, tradingPostPoint.Value.Y + 240 + offset);
+
+            Logger.Info($"Selling for {sellPrice} coins");
+
+            // Sell item
+            await Task.Delay(200);
+            Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 440, tradingPostPoint.Value.Y + 373 + offset);
+            await Task.Delay(200);
+            await CloseItemWindow();
+            break;
+        }
+    }
+
+    private static async Task SellItem(BuyItem item, List<Gw2Sharp.WebApi.V2.Models.CommerceTransactionCurrent>? currentSellingList = null)
+    {
+        using var apiClient = new Gw2Client(ApiConnection);
+
+        // Get item info
+        Gw2Sharp.WebApi.V2.Models.Item? itemInfo = null;
+        try
+        {
+            itemInfo = await apiClient.WebApi.V2.Items.GetAsync(item.Id);
+        }
+        catch (Exception e)
+        {
+            Logger.Error(e);
+            return;
+        }
+
+        if (itemInfo == null)
+        {
+            Logger.Warn("itemInfo null");
+            return;
+        }
+
+        var itemPrices = await apiClient.WebApi.V2.Commerce.Prices.GetAsync(item.Id);
+        var buyCurrencyAmount = itemPrices.Buys.UnitPrice;
+        var sellCurrencyAmount = itemPrices.Sells.UnitPrice;
+
+        Logger.Info($"Highest buyer: {buyCurrencyAmount}");
+        Logger.Info($"Lowest seller: {sellCurrencyAmount}");
+
+        // Check if sell price is within range
+        /*if (sellCurrencyAmount < item.SellPrice * ErrorRange)
+        {
+            Logger.Info($"Sell price {sellCurrencyAmount} below range {item.SellPrice * ErrorRange}");
+            await CloseItemWindow();
+            break;
+        }*/
+
+        var buyPrice = buyCurrencyAmount;
+        var sellPrice = sellCurrencyAmount;
+
+        try
+        {
+            await GoToScreen(TradingPostScreen.Sell);
+        }
+        catch (TimeoutException)
+        {
+            Logger.Debug("Timeout on GoToScreen");
+            return;
+        }
+
+        // Search
+        try
+        {
+            await SearchForItem(itemInfo, TradingPostScreen.Sell);
+        }
+        catch (TimeoutException)
+        {
+            Logger.Warn("Filter didn't appear");
+            return;
+        }
+
+        // Wait for search results to load
+        try
+        {
+            await WaitWhile(FindSearchResultsLoaded, 500, 5000);
+        }
+        catch (TimeoutException)
+        {
+            Logger.Error("Didn't load any search results");
+            LogImage();
+            return;
+        }
+
+        // Check if no item found
+        if (ImageSearch.FindImageInWindow(process!, Resources.NoItems, tradingPostPoint!.Value.X + 494, tradingPostPoint.Value.Y + 376, Resources.NoItems.Width, Resources.NoItems.Height + 72, 0.8) != null)
+        {
+            Logger.Debug("No item found");
+            return;
+        }
+
+        // Find position of Qty to determine position of search results
+        var qtyPoint = ImageSearch.FindImageInWindow(process!, Resources.Qty, tradingPostPoint!.Value.X + 324, tradingPostPoint!.Value.Y + 155, Resources.Qty.Width, Resources.Qty.Height + 72, 0.9);
+        if (qtyPoint == null)
+        {
+            Logger.Warn("qtyPoint null");
+            LogImage();
+            return;
+        }
+
+        var resultsPoint = Point.Add(qtyPoint.Value, new Size(-2, 22));
+
+        for (var y = 0; y < 7; y++)
+        {
+            var attempts = 0;
+            SellItem:
+            if (attempts >= 5)
+            {
+                break;
+            }
+
+            attempts++;
+
+            // Find the item border of the result
+            var resultPoint = ImageSearch.FindImageInWindow(process!, Resources.ResultCorner, resultsPoint.X, resultsPoint.Y + (y * 61), Resources.ResultCorner.Width, Resources.ResultCorner.Height);
+            if (resultPoint == null)
+            {
+                Logger.Debug($"Result border not found at {resultsPoint.X}, {resultsPoint.Y + (y * 61)}, qtyPoint: {qtyPoint}");
+                LogImage();
+                break;
+            }
+
+            // Click the result
+            Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, resultsPoint.X + 28, resultsPoint.Y + 27 + (y * 61));
+
+            // Wait for the item border to show up
+            try
+            {
+                await WaitWhile(FindItemBorder, 500, 5000);
+            }
+            catch (TimeoutException)
+            {
+                Logger.Warn("Item border didn't appear");
+                LogImage();
+                await CloseItemWindow();
+                goto SellItem;
+            }
+
+            DismissSuccess();
+
+            // Wait for "vendor" to show up
+            try
+            {
+                await WaitWhile(FindVendorE, 500, 5000);
+            }
+            catch (TimeoutException)
+            {
+                Logger.Warn("Vendor E didn't appear");
+                LogImage();
+                await CloseItemWindow();
+                goto SellItem;
+            }
+
+            DismissSuccess();
+
+            // Find position of 'e' in Vendor to set the offset for other UI positions
+            var vendorEPos = ImageSearch.FindImageInWindow(process!, Resources.VendorE, tradingPostPoint!.Value.X + 345, tradingPostPoint!.Value.Y + 176, Resources.VendorE.Width, Resources.VendorE.Height + 30, 0.9);
+            if (vendorEPos == null)
+            {
+                Logger.Warn("vendorEPos null");
+                LogImage();
+                await CloseItemWindow();
+                goto SellItem;
+            }
+
+            var offset = 0;
+            var nameSize = 34;
+            if (vendorEPos.Value.Y == tradingPostPoint!.Value.Y + 206)
+            {
+                offset = 24;
+                nameSize = 64;
+            }
+
+            // Get OCR of item name and check if it matches API name
+            var nameImage = ImageSearch.CaptureWindow(process!, tradingPostPoint!.Value.X + 334, tradingPostPoint.Value.Y + 136, 428, nameSize);
+            var capturedName = OCR.ReadName(nameImage!, RarityColors[itemInfo.Rarity.ToString()!]);
+            if (string.IsNullOrEmpty(capturedName))
+            {
+                Logger.Debug("Empty string returned");
+                LogImage();
+                await CloseItemWindow();
+                continue;
+            }
+
+            // Check string simlarity
+            var jw = new JaroWinkler();
+            var nameDistance = 1.0 - jw.Distance(itemInfo.Name.RemoveDiacritics().ToLower(), capturedName.ToLower());
+            Logger.Debug($"Item name: {itemInfo.Name} Captured name: {capturedName} Distance: {nameDistance}");
+            if (nameDistance < 1.0)
+            {
+                Logger.Debug("String distance below 1");
+                LogImage();
+            }
+
+            if (nameDistance < Config.MinStringSimilarity)
+            {
+                Logger.Debug("Item name too different");
+                await CloseItemWindow();
+                continue;
+            }
+
+            DismissSuccessWithOffset(offset);
+
+            // Wait for available to show up
+            try
+            {
+                await WaitWhile(FindAvailable, 500, 10000);
+            }
+            catch (TimeoutException)
+            {
+                Logger.Warn("Available didn't appear");
+                await CloseItemWindow();
+                goto SellItem;
+            }
+
+            DismissSuccessWithOffset(offset);
+
+            // Check profit is within range
+            var profit = GetProfit(item.BuyPrice, sellPrice);
+            var lowestProfit = (int)(item.Profit * Config.ProfitRange);
+            if (profit < lowestProfit)
+            {
+                Logger.Info($"Profit of {profit} outside of range");
+
+                // Find best price in range and undercut that instead
+                if (Config.SellForBestIfUnderRange)
+                {
+                    Logger.Info($"Selling for best near profit range {lowestProfit}");
+                    var listings = await apiClient.WebApi.V2.Commerce.Listings.GetAsync(item.Id);
+
+                    var profitableSell = GetSellPriceForProfit(item.BuyPrice, lowestProfit);
+                    sellPrice = listings.Sells.Where(x => x.UnitPrice >= profitableSell).Min(x => x.UnitPrice);
+                }
+                else
+                {
+                    await CloseItemWindow();
+                    break;
+                }
+            }
+
+            // Check if not my listing
+            if ((Config.UndercutSells && currentSellingList == null) || (Config.UndercutSells && currentSellingList?.Any(x => x.ItemId == item.Id && x.Price == sellCurrencyAmount) == false))
+            {
+                sellPrice--;
+            }
+
+            SetItemWindowPrice(offset, sellPrice);
+
+            // Get buy price
+            int? enteredAmount = null;
+            try
+            {
+                enteredAmount = GetItemWindowPriceWithDismiss(offset);
+            }
+            catch (FormatException e)
+            {
+                Logger.Error(e);
+                LogImage();
+                await CloseItemWindow();
+                goto SellItem;
+            }
+
+            if (enteredAmount != sellPrice)
+            {
+                Logger.Debug("Didn't enter price correctly");
+                await CloseItemWindow();
+                goto SellItem;
+            }
+
+            // Set quantity to max
+            Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 625, tradingPostPoint.Value.Y + 240 + offset);
+            await Task.Delay(100);
+            Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 625, tradingPostPoint.Value.Y + 240 + offset);
+
+            Logger.Info($"Selling for {sellPrice} coins");
+
+            // Sell item
+            await Task.Delay(200);
+            Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 440, tradingPostPoint.Value.Y + 373 + offset);
+            await Task.Delay(200);
+            await CloseItemWindow();
+            break;
+        }
+    }
+
     private static async Task SellItems()
     {
         Logger.Info("====================");
@@ -729,325 +1262,580 @@ internal static class GW2Flipper
                 continue;
             }
 
-            // Get item info
-            Gw2Sharp.WebApi.V2.Models.Item? itemInfo = null;
-            try
-            {
-                itemInfo = await apiClient.WebApi.V2.Items.GetAsync(item.Id);
-            }
-            catch (Exception e)
-            {
-                Logger.Error(e);
-                continue;
-            }
-
-            if (itemInfo == null)
-            {
-                Logger.Warn("itemInfo null");
-                continue;
-            }
-
             Logger.Info("--------------------");
             Logger.Info($"Selling [{item.Id}] {item.Name}");
             Logger.Info($"Buy: {item.BuyPrice} Sell: {item.SellPrice} Profit: {item.Profit} Bought: {item.Bought} Sold: {item.Sold}");
 
-            try
+            if (Config.UseApiPrices)
             {
-                await GoToScreen(TradingPostScreen.Sell);
+                await SellItem(item, currentSellingList);
             }
-            catch (TimeoutException)
+            else
             {
-                Logger.Debug("Timeout on GoToScreen");
-                continue;
+                await SellItemNonApi(item, currentSellingList);
+            }
+        }
+    }
+
+    private static async Task BuyItemNonApi(BuyItem item)
+    {
+        using var apiClient = new Gw2Client(ApiConnection);
+
+        // Get item info
+        Gw2Sharp.WebApi.V2.Models.Item? itemInfo = null;
+        try
+        {
+            itemInfo = await apiClient.WebApi.V2.Items.GetAsync(item.Id);
+        }
+        catch (Exception e)
+        {
+            Logger.Error(e);
+            return;
+        }
+
+        if (itemInfo == null)
+        {
+            Logger.Warn("itemInfo null");
+            return;
+        }
+
+        // Go to buy screen
+        try
+        {
+            await GoToScreen(TradingPostScreen.Buy);
+        }
+        catch (TimeoutException)
+        {
+            Logger.Debug("Timeout on GoToScreen");
+            return;
+        }
+
+        // Search
+        try
+        {
+            await SearchForItem(itemInfo, TradingPostScreen.Buy);
+        }
+        catch (TimeoutException)
+        {
+            Logger.Warn("Filter didn't appear");
+            return;
+        }
+
+        await Task.Delay(1500);
+
+        // Wait for search results to load
+        try
+        {
+            await WaitWhile(FindSearchResultsLoaded, 500, 5000);
+        }
+        catch (TimeoutException)
+        {
+            Logger.Error("Didn't load any search results");
+            LogImage();
+            return;
+        }
+
+        // Check if no item found
+        if (ImageSearch.FindImageInWindow(process!, Resources.NoItems, tradingPostPoint!.Value.X + 494, tradingPostPoint.Value.Y + 376, Resources.NoItems.Width, Resources.NoItems.Height + 72, 0.8) != null)
+        {
+            Logger.Debug("No item found");
+            return;
+        }
+
+        // Find position of Qty to determine position of search results
+        var qtyPoint = ImageSearch.FindImageInWindow(process!, Resources.Qty, tradingPostPoint!.Value.X + 324, tradingPostPoint!.Value.Y + 155, Resources.Qty.Width, Resources.Qty.Height + 72, 0.9);
+        if (qtyPoint == null)
+        {
+            Logger.Warn("qtyPoint null");
+            LogImage();
+            return;
+        }
+
+        var resultsPoint = Point.Add(qtyPoint.Value, new Size(-2, 22));
+
+        for (var y = 0; y < 7; y++)
+        {
+            var attempts = 0;
+            BuyItem:
+            if (attempts >= 5)
+            {
+                break;
             }
 
-            // Search
-            try
-            {
-                await SearchForItem(itemInfo, TradingPostScreen.Sell);
-            }
-            catch (TimeoutException)
-            {
-                Logger.Warn("Filter didn't appear");
-                continue;
-            }
+            attempts++;
 
-            await Task.Delay(500);
-
-            // Wait for search results to load
-            try
+            // Find the item border of the result
+            var resultPoint = ImageSearch.FindImageInWindow(process!, Resources.ResultCorner, resultsPoint.X, resultsPoint.Y + (y * 61), Resources.ResultCorner.Width, Resources.ResultCorner.Height);
+            if (resultPoint == null)
             {
-                await WaitWhile(FindSearchResultsLoaded, 500, 5000);
-            }
-            catch (TimeoutException)
-            {
-                Logger.Error("Didn't load any search results");
+                Logger.Debug($"Result border not found at {resultsPoint.X}, {resultsPoint.Y + (y * 61)}, qtyPoint: {qtyPoint}");
                 LogImage();
-                continue;
+                break;
             }
 
-            // Check if no item found
-            if (ImageSearch.FindImageInWindow(process!, Resources.NoItems, tradingPostPoint!.Value.X + 494, tradingPostPoint.Value.Y + 376, Resources.NoItems.Width, Resources.NoItems.Height + 72, 0.8) != null)
-            {
-                Logger.Debug("No item found");
-                continue;
-            }
+            // Click the result
+            Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, resultsPoint.X + 28, resultsPoint.Y + 27 + (y * 61));
 
-            // Find position of Qty to determine position of search results
-            var qtyPoint = ImageSearch.FindImageInWindow(process!, Resources.Qty, tradingPostPoint!.Value.X + 324, tradingPostPoint!.Value.Y + 155, Resources.Qty.Width, Resources.Qty.Height + 72, 0.9);
-            if (qtyPoint == null)
+            // Wait for the item border to show up
+            try
             {
-                Logger.Warn("qtyPoint null");
+                await WaitWhile(FindItemBorder, 500, 5000);
+            }
+            catch (TimeoutException)
+            {
+                Logger.Warn("Item border didn't appear");
                 LogImage();
+                await CloseItemWindow();
+                goto BuyItem;
+            }
+
+            // Wait for "vendor" to show up
+            try
+            {
+                await WaitWhile(FindVendorE, 500, 5000);
+            }
+            catch (TimeoutException)
+            {
+                Logger.Warn("Vendor E didn't appear");
+                LogImage();
+                await CloseItemWindow();
+                goto BuyItem;
+            }
+
+            // Find position of 'e' in Vendor to set the offset for other UI positions
+            var vendorEPos = ImageSearch.FindImageInWindow(process!, Resources.VendorE, tradingPostPoint!.Value.X + 345, tradingPostPoint!.Value.Y + 176, Resources.VendorE.Width, Resources.VendorE.Height + 30, 0.9);
+            if (vendorEPos == null)
+            {
+                Logger.Warn("vendorEPos null");
+                LogImage();
+                await CloseItemWindow();
+                goto BuyItem;
+            }
+
+            var offset = 0;
+            var nameSize = 34;
+            if (vendorEPos.Value.Y == tradingPostPoint!.Value.Y + 206)
+            {
+                offset = 24;
+                nameSize = 64;
+            }
+
+            // Get OCR of item name and check if it matches API name
+            var nameImage = ImageSearch.CaptureWindow(process!, tradingPostPoint!.Value.X + 334, tradingPostPoint.Value.Y + 136, 428, nameSize);
+            var capturedName = OCR.ReadName(nameImage!, RarityColors[itemInfo.Rarity.ToString()!]);
+            if (string.IsNullOrEmpty(capturedName))
+            {
+                Logger.Debug("Empty string returned");
+                LogImage();
+                await CloseItemWindow();
                 continue;
             }
 
-            var resultsPoint = Point.Add(qtyPoint.Value, new Size(-2, 22));
-
-            for (var y = 0; y < 7; y++)
+            // Check string similarity
+            var jw = new JaroWinkler();
+            var nameDistance = 1.0 - jw.Distance(itemInfo.Name.RemoveDiacritics().ToLower(), capturedName.ToLower());
+            Logger.Debug($"Item name: {itemInfo.Name} Captured name: {capturedName} Distance: {nameDistance}");
+            if (nameDistance < 1.0)
             {
-                var attempts = 0;
-                SellItem:
-                if (attempts >= 5)
-                {
-                    break;
-                }
+                Logger.Debug("String distance below 1");
+                LogImage();
+            }
 
-                attempts++;
+            if (nameDistance < Config.MinStringSimilarity)
+            {
+                Logger.Debug("Item name too different");
+                await CloseItemWindow();
+                continue;
+            }
 
-                // Find the item border of the result
-                var resultPoint = ImageSearch.FindImageInWindow(process!, Resources.ResultCorner, resultsPoint.X, resultsPoint.Y + (y * 61), Resources.ResultCorner.Width, Resources.ResultCorner.Height);
-                if (resultPoint == null)
-                {
-                    Logger.Debug($"Result border not found at {resultsPoint.X}, {resultsPoint.Y + (y * 61)}, qtyPoint: {qtyPoint}");
-                    LogImage();
-                    break;
-                }
+            // Wait for available to show up
+            try
+            {
+                await WaitWhile(FindAvailable, 500, 10000);
+            }
+            catch (TimeoutException)
+            {
+                Logger.Warn("Available didn't appear");
+                LogImage();
+                await CloseItemWindow();
+                goto BuyItem;
+            }
 
-                // Click the result
-                Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, resultsPoint.X + 28, resultsPoint.Y + 27 + (y * 61));
+            int? buyCurrencyAmount = null;
+            int? sellCurrencyAmount = null;
 
-                // Wait for the item border to show up
-                try
-                {
-                    await WaitWhile(FindItemBorder, 500, 5000);
-                }
-                catch (TimeoutException)
-                {
-                    Logger.Warn("Item border didn't appear");
-                    LogImage();
-                    await CloseItemWindow();
-                    // break;
-                    goto SellItem;
-                }
+            // Get sell price
+            try
+            {
+                sellCurrencyAmount = GetItemWindowPrice(offset);
+            }
+            catch (FormatException e)
+            {
+                Logger.Error(e);
+                LogImage();
+                await CloseItemWindow();
+                goto BuyItem;
+            }
 
-                DismissSuccess();
+            // Click highest current buyer
+            await Task.Delay(100);
+            Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint.Value.X + 254, tradingPostPoint.Value.Y + 499 + offset);
 
-                // Wait for "vendor" to show up
-                try
-                {
-                    await WaitWhile(FindVendorE, 500, 5000);
-                }
-                catch (TimeoutException)
-                {
-                    Logger.Warn("Vendor E didn't appear");
-                    LogImage();
-                    await CloseItemWindow();
-                    // break;
-                    goto SellItem;
-                }
+            // Get buy price
+            try
+            {
+                buyCurrencyAmount = GetItemWindowPrice(offset);
+            }
+            catch (FormatException e)
+            {
+                Logger.Error(e);
+                LogImage();
+                await CloseItemWindow();
+                goto BuyItem;
+            }
 
-                DismissSuccess();
+            Logger.Info($"Highest buyer: {buyCurrencyAmount}");
+            Logger.Info($"Lowest seller: {sellCurrencyAmount}");
 
-                // Find position of 'e' in Vendor to set the offset for other UI positions
-                var vendorEPos = ImageSearch.FindImageInWindow(process!, Resources.VendorE, tradingPostPoint!.Value.X + 345, tradingPostPoint!.Value.Y + 176, Resources.VendorE.Width, Resources.VendorE.Height + 30, 0.9);
-                if (vendorEPos == null)
-                {
-                    Logger.Warn("vendorEPos null");
-                    LogImage();
-                    await CloseItemWindow();
-                    // break;
-                    goto SellItem;
-                }
+            // Check if prices are wrong
+            if ((sellCurrencyAmount > item.SellPrice * Config.ErrorRangeInverse || sellCurrencyAmount < item.SellPrice * Config.ErrorRange)
+                && (buyCurrencyAmount > item.BuyPrice * Config.ErrorRangeInverse || buyCurrencyAmount < item.BuyPrice * Config.ErrorRange))
+            {
+                Logger.Info("Sell & buy price too different");
+                await CloseItemWindow();
+                continue;
+            }
 
-                var offset = 0;
-                var nameSize = 34;
-                if (vendorEPos.Value.Y == tradingPostPoint!.Value.Y + 206)
-                {
-                    offset = 24;
-                    nameSize = 64;
-                }
-
-                // Get OCR of item name and check if it matches API name
-                var nameImage = ImageSearch.CaptureWindow(process!, tradingPostPoint!.Value.X + 334, tradingPostPoint.Value.Y + 136, 428, nameSize);
-                var capturedName = OCR.ReadName(nameImage!, RarityColors[itemInfo.Rarity.ToString()!]);
-                if (string.IsNullOrEmpty(capturedName))
-                {
-                    Logger.Debug("Empty string returned");
-                    LogImage();
-                    await CloseItemWindow();
-                    continue;
-                }
-
-                var jw = new JaroWinkler();
-                var nameDistance = 1.0 - jw.Distance(itemInfo.Name.RemoveDiacritics().ToLower(), capturedName.ToLower());
-                Logger.Debug($"Item name: {itemInfo.Name} Captured name: {capturedName} Distance: {nameDistance}");
-                if (nameDistance < 0.99)
-                {
-                    await CloseItemWindow();
-                    continue;
-                }
-
-                DismissSuccessWithOffset(offset);
-
-                // Wait for available to show up
-                try
-                {
-                    await WaitWhile(FindAvailable, 500, 10000);
-                }
-                catch (TimeoutException)
-                {
-                    Logger.Warn("Available didn't appear");
-                    await CloseItemWindow();
-                    // break;
-                    goto SellItem;
-                }
-
-                // Get buy price
-                int? buyCurrencyAmount = null;
-                try
-                {
-                    buyCurrencyAmount = GetItemWindowPriceWithDismiss(offset);
-                }
-                catch (FormatException e)
-                {
-                    Logger.Error(e);
-                    LogImage();
-                    await CloseItemWindow();
-                    // break;
-                    goto SellItem;
-                }
-
-                Logger.Info($"Highest buyer: {buyCurrencyAmount}");
-
-                DismissSuccessWithOffset(offset);
-
-                // Click highest current seller
-                await Task.Delay(100);
-                Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint.Value.X + 542, tradingPostPoint.Value.Y + 499 + offset);
-
-                // Get sell price
-                int? sellCurrencyAmount = null;
-                try
-                {
-                    sellCurrencyAmount = GetItemWindowPriceWithDismiss(offset);
-                }
-                catch (FormatException e)
-                {
-                    Logger.Error(e);
-                    LogImage();
-                    await CloseItemWindow();
-                    // break;
-                    goto SellItem;
-                }
-
-                Logger.Info($"Lowest seller: {sellCurrencyAmount}");
-
-                // Check if prices are wrong
-                if ((sellCurrencyAmount > item.SellPrice * ErrorRangeInverse || sellCurrencyAmount < item.SellPrice * ErrorRange)
-                    && (buyCurrencyAmount > item.BuyPrice * ErrorRangeInverse || buyCurrencyAmount < item.BuyPrice * ErrorRange))
-                {
-                    Logger.Info("Sell & buy price too different");
-                    await CloseItemWindow();
-                    continue;
-                }
-
-                // Check if sell price is within range
-                /*if (sellCurrencyAmount < item.SellPrice * ErrorRange)
-                {
-                    Logger.Info($"Sell price {sellCurrencyAmount} below range {item.SellPrice * ErrorRange}");
-                    await CloseItemWindow();
-                    break;
-                }*/
-
-                var buyPrice = buyCurrencyAmount!.Value;
-                var sellPrice = sellCurrencyAmount!.Value;
-
-                if (UndercutBuys)
-                {
-                    buyPrice++;
-                }
-
-                DismissSuccessWithOffset(offset);
-
-                // Check profit is within range
-                var profit = GetProfit(item.BuyPrice, sellPrice);
-                var lowestProfit = (int)(item.Profit * ProfitRange);
-                if (profit < lowestProfit)
-                {
-                    Logger.Info($"Profit of {profit} outside of range");
-
-                    // Find best price in range and undercut that instead
-                    if (SellForBestIfUnderRange)
-                    {
-                        Logger.Info($"Selling for best near profit range {lowestProfit}");
-                        var listings = await apiClient.WebApi.V2.Commerce.Listings.GetAsync(item.Id);
-
-                        var profitableSell = GetSellPriceForProfit(item.BuyPrice, lowestProfit);
-                        sellPrice = listings.Sells.Where(x => x.UnitPrice >= profitableSell).Min(x => x.UnitPrice);
-
-                        SetItemWindowPrice(offset, sellPrice);
-
-                        // Get buy price
-                        int? enteredAmount = null;
-                        try
-                        {
-                            enteredAmount = GetItemWindowPriceWithDismiss(offset);
-                        }
-                        catch (FormatException e)
-                        {
-                            Logger.Error(e);
-                            LogImage();
-                            await CloseItemWindow();
-                            // break;
-                            goto SellItem;
-                        }
-
-                        if (enteredAmount != sellPrice)
-                        {
-                            Logger.Debug("Didn't enter price correctly");
-                            await CloseItemWindow();
-                            // break;
-                            goto SellItem;
-                        }
-                    }
-                    else
-                    {
-                        await CloseItemWindow();
-                        break;
-                    }
-                }
-
-                // Check if not my listing
-                if (UndercutSells && !currentSellingList.Any(x => x.ItemId == item.Id && x.Price == sellCurrencyAmount))
-                {
-                    // Click to -1 copper
-                    Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint.Value.X + 593, tradingPostPoint.Value.Y + 283 + offset);
-                    sellPrice--;
-                }
-
-                // Set quantity to max
-                Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 625, tradingPostPoint.Value.Y + 240 + offset);
-                await Task.Delay(100);
-                Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 625, tradingPostPoint.Value.Y + 240 + offset);
-
-                Logger.Info($"Selling for {sellPrice} coins");
-
-                // Sell item
-                Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 440, tradingPostPoint.Value.Y + 373 + offset);
+            // Check if sell price is within range
+            if (sellCurrencyAmount < item.SellPrice * Config.ErrorRange)
+            {
+                Logger.Info("Sell price below range");
                 await CloseItemWindow();
                 break;
             }
+
+            // Check if buy price is within range
+            if (buyCurrencyAmount > item.BuyPrice * Config.ErrorRangeInverse)
+            {
+                Logger.Info("Buy price above range");
+                await CloseItemWindow();
+                break;
+            }
+
+            var buyPrice = buyCurrencyAmount!.Value;
+            var sellPrice = sellCurrencyAmount!.Value;
+
+            // Check profit is within range
+            var profit = GetProfit(buyPrice, sellPrice);
+            if (profit < (item.Profit * Config.ErrorRange) || profit < 5)
+            {
+                Logger.Info($"Profit of {profit} outside of range");
+                await CloseItemWindow();
+                break;
+            }
+
+            if (Config.UndercutBuys)
+            {
+                // Click to +1 copper
+                Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint.Value.X + 593, tradingPostPoint.Value.Y + 272 + offset);
+                buyPrice++;
+            }
+
+            var quantity = Math.Min(Math.Min((int)(Config.MaxSpend / buyPrice), (int)(item.Sold * Config.Quantity)), 250);
+            quantity = quantity < 1 ? 1 : quantity;
+
+            Logger.Info($"Buying {quantity} for {buyPrice} coins each");
+
+            if (quantity > 1)
+            {
+                // Set quantity
+                Input.MouseMoveAndDoubleClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 402, tradingPostPoint.Value.Y + 236 + offset);
+                Input.KeyStringSend(process!, quantity.ToString());
+            }
+            else
+            {
+                // Set quantity to 1
+                Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 448, tradingPostPoint.Value.Y + 240 + offset);
+            }
+
+            // Buy item
+            await Task.Delay(200);
+            Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 440, tradingPostPoint.Value.Y + 373 + offset);
+            await Task.Delay(200);
+            await CloseItemWindow();
+            break;
+        }
+    }
+
+    private static async Task BuyItem(BuyItem item)
+    {
+        using var apiClient = new Gw2Client(ApiConnection);
+
+        // Get item info
+        Gw2Sharp.WebApi.V2.Models.Item? itemInfo = null;
+        try
+        {
+            itemInfo = await apiClient.WebApi.V2.Items.GetAsync(item.Id);
+        }
+        catch (Exception e)
+        {
+            Logger.Error(e);
+            return;
+        }
+
+        if (itemInfo == null)
+        {
+            Logger.Warn("itemInfo null");
+            return;
+        }
+
+        // Check prices
+        var itemPrices = await apiClient.WebApi.V2.Commerce.Prices.GetAsync(item.Id);
+        var buyCurrencyAmount = itemPrices.Buys.UnitPrice;
+        var sellCurrencyAmount = itemPrices.Sells.UnitPrice;
+
+        Logger.Info($"Highest buyer: {buyCurrencyAmount}");
+        Logger.Info($"Lowest seller: {sellCurrencyAmount}");
+
+        // Check if sell price is within range
+        if (sellCurrencyAmount < item.SellPrice * Config.ErrorRange)
+        {
+            Logger.Info("Sell price below range");
+            return;
+        }
+
+        // Check if buy price is within range
+        if (buyCurrencyAmount > item.BuyPrice * Config.ErrorRangeInverse)
+        {
+            Logger.Info("Buy price above range");
+            return;
+        }
+
+        var buyPrice = buyCurrencyAmount;
+        var sellPrice = sellCurrencyAmount;
+
+        // Check profit is within range
+        var profit = GetProfit(buyPrice, sellPrice);
+        if (profit < (item.Profit * Config.ErrorRange) || profit < 5)
+        {
+            Logger.Info($"Profit of {profit} outside of range");
+            return;
+        }
+
+        // Go to buy screen
+        try
+        {
+            await GoToScreen(TradingPostScreen.Buy);
+        }
+        catch (TimeoutException)
+        {
+            Logger.Debug("Timeout on GoToScreen");
+            return;
+        }
+
+        // Search
+        try
+        {
+            await SearchForItem(itemInfo, TradingPostScreen.Buy);
+        }
+        catch (TimeoutException)
+        {
+            Logger.Warn("Filter didn't appear");
+            return;
+        }
+
+        await Task.Delay(1500);
+
+        // Wait for search results to load
+        try
+        {
+            await WaitWhile(FindSearchResultsLoaded, 500, 5000);
+        }
+        catch (TimeoutException)
+        {
+            Logger.Error("Didn't load any search results");
+            LogImage();
+            return;
+        }
+
+        // Check if no item found
+        if (ImageSearch.FindImageInWindow(process!, Resources.NoItems, tradingPostPoint!.Value.X + 494, tradingPostPoint.Value.Y + 376, Resources.NoItems.Width, Resources.NoItems.Height + 72, 0.8) != null)
+        {
+            Logger.Debug("No item found");
+            return;
+        }
+
+        // Find position of Qty to determine position of search results
+        var qtyPoint = ImageSearch.FindImageInWindow(process!, Resources.Qty, tradingPostPoint!.Value.X + 324, tradingPostPoint!.Value.Y + 155, Resources.Qty.Width, Resources.Qty.Height + 72, 0.9);
+        if (qtyPoint == null)
+        {
+            Logger.Warn("qtyPoint null");
+            LogImage();
+            return;
+        }
+
+        var resultsPoint = Point.Add(qtyPoint.Value, new Size(-2, 22));
+
+        for (var y = 0; y < 7; y++)
+        {
+            var attempts = 0;
+            BuyItem:
+            if (attempts >= 5)
+            {
+                break;
+            }
+
+            attempts++;
+
+            // Find the item border of the result
+            var resultPoint = ImageSearch.FindImageInWindow(process!, Resources.ResultCorner, resultsPoint.X, resultsPoint.Y + (y * 61), Resources.ResultCorner.Width, Resources.ResultCorner.Height);
+            if (resultPoint == null)
+            {
+                Logger.Debug($"Result border not found at {resultsPoint.X}, {resultsPoint.Y + (y * 61)}, qtyPoint: {qtyPoint}");
+                LogImage();
+                break;
+            }
+
+            // Click the result
+            Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, resultsPoint.X + 28, resultsPoint.Y + 27 + (y * 61));
+
+            // Wait for the item border to show up
+            try
+            {
+                await WaitWhile(FindItemBorder, 500, 5000);
+            }
+            catch (TimeoutException)
+            {
+                Logger.Warn("Item border didn't appear");
+                LogImage();
+                await CloseItemWindow();
+                // break;
+                goto BuyItem;
+            }
+
+            // Wait for "vendor" to show up
+            try
+            {
+                await WaitWhile(FindVendorE, 500, 5000);
+            }
+            catch (TimeoutException)
+            {
+                Logger.Warn("Vendor E didn't appear");
+                LogImage();
+                await CloseItemWindow();
+                goto BuyItem;
+            }
+
+            // Find position of 'e' in Vendor to set the offset for other UI positions
+            var vendorEPos = ImageSearch.FindImageInWindow(process!, Resources.VendorE, tradingPostPoint!.Value.X + 345, tradingPostPoint!.Value.Y + 176, Resources.VendorE.Width, Resources.VendorE.Height + 30, 0.9);
+            if (vendorEPos == null)
+            {
+                Logger.Warn("vendorEPos null");
+                LogImage();
+                await CloseItemWindow();
+                goto BuyItem;
+            }
+
+            var offset = 0;
+            var nameSize = 34;
+            if (vendorEPos.Value.Y == tradingPostPoint!.Value.Y + 206)
+            {
+                offset = 24;
+                nameSize = 64;
+            }
+
+            // Get OCR of item name and check if it matches API name
+            var nameImage = ImageSearch.CaptureWindow(process!, tradingPostPoint!.Value.X + 334, tradingPostPoint.Value.Y + 136, 428, nameSize);
+            var capturedName = OCR.ReadName(nameImage!, RarityColors[itemInfo.Rarity.ToString()!]);
+            if (string.IsNullOrEmpty(capturedName))
+            {
+                Logger.Debug("Empty string returned");
+                LogImage();
+                await CloseItemWindow();
+                continue;
+            }
+
+            // Check string similarity
+            var jw = new JaroWinkler();
+            var nameDistance = 1.0 - jw.Distance(itemInfo.Name.RemoveDiacritics().ToLower(), capturedName.ToLower());
+            Logger.Debug($"Item name: {itemInfo.Name} Captured name: {capturedName} Distance: {nameDistance}");
+            if (nameDistance < 1.0)
+            {
+                Logger.Debug("String distance below 1");
+                LogImage();
+            }
+
+            if (nameDistance < Config.MinStringSimilarity)
+            {
+                Logger.Debug("Item name too different");
+                await CloseItemWindow();
+                continue;
+            }
+
+            // Wait for available to show up
+            try
+            {
+                await WaitWhile(FindAvailable, 500, 10000);
+            }
+            catch (TimeoutException)
+            {
+                Logger.Warn("Available didn't appear");
+                LogImage();
+                await CloseItemWindow();
+                goto BuyItem;
+            }
+
+            if (Config.UndercutBuys)
+            {
+                buyPrice++;
+            }
+
+            SetItemWindowPrice(offset, buyPrice);
+
+            // Check entered price
+            int? enteredAmount = null;
+            try
+            {
+                enteredAmount = GetItemWindowPrice(offset);
+            }
+            catch (FormatException e)
+            {
+                Logger.Error(e);
+                LogImage();
+                await CloseItemWindow();
+                goto BuyItem;
+            }
+
+            if (enteredAmount != buyPrice)
+            {
+                Logger.Debug("Didn't enter price correctly");
+                await CloseItemWindow();
+                goto BuyItem;
+            }
+
+            var quantity = Math.Min(Math.Min((int)(Config.MaxSpend / buyPrice), (int)(item.Sold * Config.Quantity)), 250);
+            quantity = quantity < 1 ? 1 : quantity;
+
+            Logger.Info($"Buying {quantity} for {buyPrice} coins each");
+
+            if (quantity > 1)
+            {
+                // Set quantity
+                Input.MouseMoveAndDoubleClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 402, tradingPostPoint.Value.Y + 236 + offset);
+                Input.KeyStringSend(process!, quantity.ToString());
+            }
+            else
+            {
+                // Set quantity to 1
+                Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 448, tradingPostPoint.Value.Y + 240 + offset);
+            }
+
+            // Buy item
+            await Task.Delay(200);
+            Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 440, tradingPostPoint.Value.Y + 373 + offset);
+            await Task.Delay(200);
+            await CloseItemWindow();
+            break;
         }
     }
 
@@ -1062,7 +1850,7 @@ internal static class GW2Flipper
         var character = apiClient.Mumble.CharacterName;
 
         List<Gw2Sharp.WebApi.V2.Models.CommerceTransactionCurrent>? currentSellingList = null;
-        if (!BuyIfSelling)
+        if (!Config.BuyIfSelling)
         {
             var currentSelling = await apiClient.WebApi.V2.Commerce.Transactions.Current.Sells.PageAsync(0);
             currentSellingList = currentSelling.ToList();
@@ -1083,10 +1871,7 @@ internal static class GW2Flipper
             currentBuyingList = currentBuyingList.Concat(currentBuying.ToList()).ToList();
         }
 
-        // foreach (var item in BuyItemsList)
-        // {
-
-        for (var endLoopIndex = currentLoopIndex + BuysPerSellLoop; currentLoopIndex < endLoopIndex; currentLoopIndex++)
+        for (var endLoopIndex = currentLoopIndex + Config.BuysPerSellLoop; currentLoopIndex < endLoopIndex; currentLoopIndex++)
         {
             if (currentLoopIndex >= BuyItemsList.Count)
             {
@@ -1101,7 +1886,7 @@ internal static class GW2Flipper
             Logger.Info($"Buy: {item.BuyPrice} Sell: {item.SellPrice} Profit: {item.Profit} Bought: {item.Bought} Sold: {item.Sold}");
 
             // Check if currently selling item
-            if (!BuyIfSelling && currentSellingList!.Any(x => x.ItemId == item.Id))
+            if (!Config.BuyIfSelling && currentSellingList!.Any(x => x.ItemId == item.Id))
             {
                 Logger.Info("Skipping, already selling");
                 continue;
@@ -1110,344 +1895,48 @@ internal static class GW2Flipper
             // Check if already buying item
             if (currentBuyingList.Any(x => x.ItemId == item.Id))
             {
-                if (CancelUndercutDuringBuy)
+                try
                 {
-                    try
-                    {
-                        var itemPrices = await apiClient.WebApi.V2.Commerce.Prices.GetAsync(item.Id);
-                        var highestPrice = itemPrices.Buys.UnitPrice;
-                        var price = currentBuyingList.Where(x => x.ItemId == item.Id).Max(x => x.Price);
+                    var itemPrices = await apiClient.WebApi.V2.Commerce.Prices.GetAsync(item.Id);
+                    var highestPrice = itemPrices.Buys.UnitPrice;
+                    var price = currentBuyingList.Where(x => x.ItemId == item.Id).Max(x => x.Price);
 
-                        // If we haven't been undercut
-                        if (highestPrice <= price)
-                        {
-                            Logger.Info("Skipping, already buying");
-                            continue;
-                        }
-                    }
-                    catch (Exception e)
+                    // If we haven't been undercut
+                    if (highestPrice <= price)
                     {
-                        Logger.Error(e);
+                        Logger.Info("Skipping, already buying");
                         continue;
                     }
-
-                    Logger.Info("Cancelling undercut");
-                    await CancelItem(item);
                 }
-                else
-                {
-                    Logger.Info("Skipping, already buying");
-                    continue;
-                }
-            }
-
-            try
-            {
-                await GoToScreen(TradingPostScreen.Buy);
-            }
-            catch (TimeoutException)
-            {
-                Logger.Debug("Timeout on GoToScreen");
-                continue;
-            }
-
-            // Get item info
-            Gw2Sharp.WebApi.V2.Models.Item? itemInfo = null;
-            try
-            {
-                itemInfo = await apiClient.WebApi.V2.Items.GetAsync(item.Id);
-            }
-            catch (Exception e)
-            {
-                Logger.Error(e);
-                continue;
-            }
-
-            if (itemInfo == null)
-            {
-                Logger.Warn("itemInfo null");
-                continue;
-            }
-
-            // Search
-            try
-            {
-                await SearchForItem(itemInfo, TradingPostScreen.Buy);
-            }
-            catch (TimeoutException)
-            {
-                Logger.Warn("Filter didn't appear");
-                continue;
-            }
-
-            await Task.Delay(2500);
-
-            // Wait for search results to load
-            try
-            {
-                await WaitWhile(FindSearchResultsLoaded, 500, 5000);
-            }
-            catch (TimeoutException)
-            {
-                Logger.Error("Didn't load any search results");
-                LogImage();
-                continue;
-            }
-
-            // Check if no item found
-            if (ImageSearch.FindImageInWindow(process!, Resources.NoItems, tradingPostPoint!.Value.X + 494, tradingPostPoint.Value.Y + 376, Resources.NoItems.Width, Resources.NoItems.Height + 72, 0.8) != null)
-            {
-                Logger.Debug("No item found");
-                continue;
-            }
-
-            // Find position of Qty to determine position of search results
-            var qtyPoint = ImageSearch.FindImageInWindow(process!, Resources.Qty, tradingPostPoint!.Value.X + 324, tradingPostPoint!.Value.Y + 155, Resources.Qty.Width, Resources.Qty.Height + 72, 0.9);
-            if (qtyPoint == null)
-            {
-                Logger.Warn("qtyPoint null");
-                LogImage();
-                continue;
-            }
-
-            var resultsPoint = Point.Add(qtyPoint.Value, new Size(-2, 22));
-
-            for (var y = 0; y < 7; y++)
-            {
-                var attempts = 0;
-                BuyItem:
-                if (attempts >= 5)
-                {
-                    break;
-                }
-
-                attempts++;
-
-                // Find the item border of the result
-                var resultPoint = ImageSearch.FindImageInWindow(process!, Resources.ResultCorner, resultsPoint.X, resultsPoint.Y + (y * 61), Resources.ResultCorner.Width, Resources.ResultCorner.Height);
-                if (resultPoint == null)
-                {
-                    Logger.Debug($"Result border not found at {resultsPoint.X}, {resultsPoint.Y + (y * 61)}, qtyPoint: {qtyPoint}");
-                    LogImage();
-                    break;
-                }
-
-                // Click the result
-                Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, resultsPoint.X + 28, resultsPoint.Y + 27 + (y * 61));
-
-                // Wait for the item border to show up
-                try
-                {
-                    await WaitWhile(FindItemBorder, 500, 5000);
-                }
-                catch (TimeoutException)
-                {
-                    Logger.Warn("Item border didn't appear");
-                    LogImage();
-                    await CloseItemWindow();
-                    // break;
-                    goto BuyItem;
-                }
-
-                // Wait for "vendor" to show up
-                try
-                {
-                    await WaitWhile(FindVendorE, 500, 5000);
-                }
-                catch (TimeoutException)
-                {
-                    Logger.Warn("Vendor E didn't appear");
-                    LogImage();
-                    await CloseItemWindow();
-                    // break;
-                    goto BuyItem;
-                }
-
-                // Find position of 'e' in Vendor to set the offset for other UI positions
-                var vendorEPos = ImageSearch.FindImageInWindow(process!, Resources.VendorE, tradingPostPoint!.Value.X + 345, tradingPostPoint!.Value.Y + 176, Resources.VendorE.Width, Resources.VendorE.Height + 30, 0.9);
-                if (vendorEPos == null)
-                {
-                    Logger.Warn("vendorEPos null");
-                    LogImage();
-                    await CloseItemWindow();
-                    // break;
-                    goto BuyItem;
-                }
-
-                var offset = 0;
-                var nameSize = 34;
-                if (vendorEPos.Value.Y == tradingPostPoint!.Value.Y + 206)
-                {
-                    offset = 24;
-                    nameSize = 64;
-                }
-
-                // Get OCR of item name and check if it matches API name
-                var nameImage = ImageSearch.CaptureWindow(process!, tradingPostPoint!.Value.X + 334, tradingPostPoint.Value.Y + 136, 428, nameSize);
-                var capturedName = OCR.ReadName(nameImage!, RarityColors[itemInfo.Rarity.ToString()!]);
-                if (string.IsNullOrEmpty(capturedName))
-                {
-                    Logger.Debug("Empty string returned");
-                    LogImage();
-                    await CloseItemWindow();
-                    continue;
-                }
-
-                var jw = new JaroWinkler();
-                var nameDistance = 1.0 - jw.Distance(itemInfo.Name.RemoveDiacritics().ToLower(), capturedName.ToLower());
-                Logger.Debug($"Item name: {itemInfo.Name} Captured name: {capturedName} Distance: {nameDistance}");
-                if (nameDistance < 0.99)
-                {
-                    await CloseItemWindow();
-                    continue;
-                }
-
-                // Wait for available to show up
-                try
-                {
-                    await WaitWhile(FindAvailable, 500, 10000);
-                }
-                catch (TimeoutException)
-                {
-                    Logger.Warn("Available didn't appear");
-                    LogImage();
-                    await CloseItemWindow();
-                    break;
-                }
-
-                // Get sell price
-                int? sellCurrencyAmount = null;
-                try
-                {
-                    sellCurrencyAmount = GetItemWindowPrice(offset);
-                }
-                catch (FormatException e)
+                catch (Exception e)
                 {
                     Logger.Error(e);
-                    LogImage();
-                    await CloseItemWindow();
-                    // break;
-                    goto BuyItem;
-                }
-
-                Logger.Info($"Lowest seller: {sellCurrencyAmount}");
-
-                // Click highest current buyer
-                await Task.Delay(100);
-                Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint.Value.X + 254, tradingPostPoint.Value.Y + 499 + offset);
-
-                // Get buy price
-                int? buyCurrencyAmount = null;
-                try
-                {
-                    buyCurrencyAmount = GetItemWindowPrice(offset);
-                }
-                catch (FormatException e)
-                {
-                    Logger.Error(e);
-                    LogImage();
-                    await CloseItemWindow();
-                    // break;
-                    goto BuyItem;
-                }
-
-                Logger.Info($"Highest buyer: {buyCurrencyAmount}");
-
-                // Check if prices are wrong
-                if ((sellCurrencyAmount > item.SellPrice * ErrorRangeInverse || sellCurrencyAmount < item.SellPrice * ErrorRange)
-                    && (buyCurrencyAmount > item.BuyPrice * ErrorRangeInverse || buyCurrencyAmount < item.BuyPrice * ErrorRange))
-                {
-                    Logger.Info("Sell & buy price too different");
-                    await CloseItemWindow();
                     continue;
                 }
 
-                // Check if sell price is within range
-                if (sellCurrencyAmount < item.SellPrice * ErrorRange)
-                {
-                    Logger.Info("Sell price below range");
-                    await CloseItemWindow();
-                    break;
-                }
+                Logger.Info("Cancelling undercut");
+                await CancelItem(item);
+            }
 
-                // Check if buy price is within range
-                if (buyCurrencyAmount > item.BuyPrice * ErrorRangeInverse)
-                {
-                    Logger.Info("Buy price above range");
-                    await CloseItemWindow();
-                    break;
-                }
-
-                var buyPrice = buyCurrencyAmount!.Value;
-                var sellPrice = sellCurrencyAmount!.Value;
-
-                // Check profit is within range
-                var profit = GetProfit(buyPrice, sellPrice);
-                if (profit < (item.Profit * ErrorRange) || profit < 5)
-                {
-                    Logger.Info($"Profit of {profit} outside of range");
-                    await CloseItemWindow();
-                    break;
-                }
-
-                if (UndercutBuys)
-                {
-                    buyPrice++;
-                }
-
-                if (UndercutSells)
-                {
-                    sellPrice--;
-                }
-
-                if (UndercutBuys)
-                {
-                    // Click to +1 copper
-                    Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint.Value.X + 593, tradingPostPoint.Value.Y + 272 + offset);
-                }
-
-                var quantity = Math.Min(Math.Min((int)(MaxSpend / buyPrice), (int)(item.Sold * Quantity)), 250);
-                quantity = quantity < 1 ? 1 : quantity;
-
-                Logger.Info($"Buying {quantity} for {buyPrice} coins each");
-
-                if (quantity > 1)
-                {
-                    // Set quantity
-                    Input.MouseMoveAndDoubleClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 402, tradingPostPoint.Value.Y + 236 + offset);
-                    Input.KeyStringSend(process!, quantity.ToString());
-                }
-                else
-                {
-                    // Set quantity to 1
-                    Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 448, tradingPostPoint.Value.Y + 240 + offset);
-                }
-
-                // Buy item
-                Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 440, tradingPostPoint.Value.Y + 373 + offset);
-                await CloseItemWindow();
-                break;
+            if (Config.UseApiPrices)
+            {
+                await BuyItem(item);
+            }
+            else
+            {
+                await BuyItemNonApi(item);
             }
         }
     }
 
     private static async Task CancelItem(BuyItem item)
     {
-        try
-        {
-            await GoToScreen(TradingPostScreen.Transactions);
-        }
-        catch (TimeoutException)
-        {
-            Logger.Debug("Timeout on GoToScreen");
-            return;
-        }
+        using var apiClient = new Gw2Client(ApiConnection);
 
         // Get item info
         Gw2Sharp.WebApi.V2.Models.Item? itemInfo = null;
         try
         {
-            using var apiClient = new Gw2Client(ApiConnection);
             itemInfo = await apiClient.WebApi.V2.Items.GetAsync(item.Id);
         }
         catch (Exception e)
@@ -1462,7 +1951,18 @@ internal static class GW2Flipper
             return;
         }
 
-        // Click buying if not selected
+        // Go to transactions screen
+        try
+        {
+            await GoToScreen(TradingPostScreen.Transactions);
+        }
+        catch (TimeoutException)
+        {
+            Logger.Debug("Timeout on GoToScreen");
+            return;
+        }
+
+        // Check if buying if not selected
         if (ImageSearch.FindImageInWindow(process!, Resources.CurrentBuying, tradingPostPoint!.Value.X + 60, tradingPostPoint!.Value.Y + 224, Resources.CurrentBuying.Width, Resources.CurrentBuying.Height, 0.9) != null)
         {
             // Wait for search results to load
@@ -1487,10 +1987,10 @@ internal static class GW2Flipper
 
                 // Wait for load more button to appear
                 Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 650, tradingPostPoint!.Value.Y + 688);
-                await Task.Delay(100);
+                await Task.Delay(500);
                 try
                 {
-                    await WaitWhile(() => ImageSearch.FindImageInWindow(process!, Resources.LoadMore, tradingPostPoint!.Value.X + 610, tradingPostPoint!.Value.Y + 679, Resources.LoadMore.Width, Resources.LoadMore.Height, 0.5) == null, 500, 2000);
+                    await WaitWhile(() => ImageSearch.FindImageInWindow(process!, Resources.LoadMore, tradingPostPoint!.Value.X + 610, tradingPostPoint!.Value.Y + 679, Resources.LoadMore.Width, Resources.LoadMore.Height, 0.5) == null, 500, 5000);
                 }
                 catch (TimeoutException)
                 {
@@ -1498,6 +1998,7 @@ internal static class GW2Flipper
                 }
             }
 
+            // Click buying
             Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 174, tradingPostPoint!.Value.Y + 240);
             await Task.Delay(1000);
 
@@ -1524,10 +2025,10 @@ internal static class GW2Flipper
 
             // Wait for load more button to appear
             Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 650, tradingPostPoint!.Value.Y + 688);
-            await Task.Delay(100);
+            await Task.Delay(500);
             try
             {
-                await WaitWhile(() => ImageSearch.FindImageInWindow(process!, Resources.LoadMore, tradingPostPoint!.Value.X + 610, tradingPostPoint!.Value.Y + 679, Resources.LoadMore.Width, Resources.LoadMore.Height, 0.5) == null, 500, 2000);
+                await WaitWhile(() => ImageSearch.FindImageInWindow(process!, Resources.LoadMore, tradingPostPoint!.Value.X + 610, tradingPostPoint!.Value.Y + 679, Resources.LoadMore.Width, Resources.LoadMore.Height, 0.5) == null, 500, 5000);
             }
             catch (TimeoutException)
             {
@@ -1545,8 +2046,6 @@ internal static class GW2Flipper
             Logger.Warn("Filter didn't appear");
             return;
         }
-
-        await Task.Delay(500);
 
         // Wait for search results to load
         try
@@ -1609,7 +2108,6 @@ internal static class GW2Flipper
                 Logger.Warn("Item border didn't appear");
                 LogImage();
                 await CloseItemWindow();
-                // break;
                 goto CancelItem;
             }
 
@@ -1623,7 +2121,6 @@ internal static class GW2Flipper
                 Logger.Warn("Vendor E didn't appear");
                 LogImage();
                 await CloseItemWindow();
-                // break;
                 goto CancelItem;
             }
 
@@ -1634,7 +2131,6 @@ internal static class GW2Flipper
                 Logger.Warn("vendorEPos null");
                 LogImage();
                 await CloseItemWindow();
-                // break;
                 goto CancelItem;
             }
 
@@ -1655,11 +2151,19 @@ internal static class GW2Flipper
                 continue;
             }
 
+            // Check string similarity
             var jw = new JaroWinkler();
             var nameDistance = 1.0 - jw.Distance(itemInfo.Name.RemoveDiacritics().ToLower(), capturedName.ToLower());
             Logger.Debug($"Item name: {itemInfo.Name} Captured name: {capturedName} Distance: {nameDistance}");
-            if (nameDistance < 0.99)
+            if (nameDistance < 1.0)
             {
+                Logger.Debug("String distance below 1");
+                LogImage();
+            }
+
+            if (nameDistance < Config.MinStringSimilarity)
+            {
+                Logger.Debug("Item name too different");
                 await CloseItemWindow();
                 continue;
             }
@@ -1677,43 +2181,10 @@ internal static class GW2Flipper
         }
     }
 
-    private static async Task CancelUndercut()
+    /*private static async Task CancelUndercut()
     {
         Logger.Info("====================");
         Logger.Info("Cancelling undercut buys");
-
-        try
-        {
-            await GoToScreen(TradingPostScreen.Transactions);
-        }
-        catch (TimeoutException)
-        {
-            return;
-        }
-
-        // Click buying if not selected
-        if (ImageSearch.FindImageInWindow(process!, Resources.CurrentBuying, tradingPostPoint!.Value.X + 60, tradingPostPoint!.Value.Y + 224, Resources.CurrentBuying.Width, Resources.CurrentBuying.Height, 0.9) != null)
-        {
-            Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 174, tradingPostPoint!.Value.Y + 240);
-        }
-
-        // Wait for search results to load
-        try
-        {
-            await WaitWhile(FindSearchResultsLoaded, 500, 5000);
-        }
-        catch (TimeoutException)
-        {
-            Logger.Error("Didn't load any search results");
-            LogImage();
-            return;
-        }
-
-        // Check if no item found
-        if (ImageSearch.FindImageInWindow(process!, Resources.NoItems, tradingPostPoint!.Value.X + 494, tradingPostPoint.Value.Y + 376, Resources.NoItems.Width, Resources.NoItems.Height + 72, 0.8) != null)
-        {
-            return;
-        }
 
         using var apiClient = new Gw2Client(ApiConnection);
 
@@ -1760,6 +2231,48 @@ internal static class GW2Flipper
 
             await CancelItem(item);
         }
+    }*/
+
+    private static async Task CancelUnprofitable()
+    {
+        Logger.Info("====================");
+        Logger.Info("Cancelling unprofitable items");
+
+        using var apiClient = new Gw2Client(ApiConnection);
+
+        var currentBuying = await apiClient.WebApi.V2.Commerce.Transactions.Current.Buys.PageAsync(0);
+        var currentBuyingList = currentBuying.ToList();
+        var numBuyingPages = currentBuying.HttpResponseInfo?.PageTotal;
+        for (var i = 1; i < numBuyingPages; i++)
+        {
+            currentBuying = await apiClient.WebApi.V2.Commerce.Transactions.Current.Buys.PageAsync(i);
+            currentBuyingList = currentBuyingList.Concat(currentBuying.ToList()).ToList();
+        }
+
+        foreach (var item in RemoveItemsList)
+        {
+            // Check if we're currently buying item
+            if (currentBuyingList.Any(x => x.ItemId == item.Id))
+            {
+                Logger.Info("-------------------- ");
+                Logger.Info($"Cancelling [{item.Id}] {item.Name}");
+
+                await CancelItem(item);
+            }
+
+            Logger.Info("--------------------");
+            Logger.Info($"Selling [{item.Id}] {item.Name}");
+            Logger.Info($"Buy: {item.BuyPrice} Sell: {item.SellPrice} Profit: {item.Profit} Bought: {item.Bought} Sold: {item.Sold}");
+
+            if (Config.UseApiPrices)
+            {
+                await SellItem(item);
+            }
+            else
+            {
+                await SellItemNonApi(item);
+            }
+        }
     }
 
     private static void CheckNewMap()
@@ -1796,14 +2309,14 @@ internal static class GW2Flipper
         timeSinceLastAfkCheck = DateTime.Now;
     }
 
-    private static void CheckPosition()
+    /*private static void CheckPosition()
     {
         using var apiClient = new Gw2Client(ApiConnection);
 
         apiClient.Mumble.Update();
 
         var position = apiClient.Mumble.AvatarPosition;
-    }
+    }*/
 
     private static int ToCurrency(int gold, int silver, int copper) => (gold * 10000) + (silver * 100) + copper;
 
@@ -1824,11 +2337,11 @@ internal static class GW2Flipper
 
     private static int GetSellPriceForProfit(int buy, int profit) => (int)Math.Floor((profit + buy) / 0.85);
 
-    private static bool IsStackable(string type) => type is "Consumable"
+    /*private static bool IsStackable(string type) => type is "Consumable"
         or "Container"
         or "CraftingMaterial"
         or "Trophy"
-        or "UpgradeComponent";
+        or "UpgradeComponent";*/
 
     private static async Task WaitWhile(Func<bool> condition, int frequency, int timeout)
     {
@@ -1849,7 +2362,7 @@ internal static class GW2Flipper
     private static bool FindSearchResultsLoaded()
     {
         var noItems = ImageSearch.FindImageInWindow(process!, Resources.NoItems, tradingPostPoint!.Value.X + 494, tradingPostPoint.Value.Y + 376, Resources.NoItems.Width, Resources.NoItems.Height + 72, 0.8);
-        var resultBorder = ImageSearch.FindImageInWindow(process!, Resources.ResultCorner, tradingPostPoint!.Value.X + 322, tradingPostPoint!.Value.Y + 177, Resources.ResultCorner.Width, Resources.ResultCorner.Height + 72);
+        var resultBorder = ImageSearch.FindImageInWindow(process!, Resources.ResultCorner, tradingPostPoint!.Value.X + 322, tradingPostPoint!.Value.Y + 177, Resources.ResultCorner.Width, Resources.ResultCorner.Height + 72, 0.98);
         return noItems == null && resultBorder == null;
     }
 
@@ -1861,13 +2374,7 @@ internal static class GW2Flipper
 
     private static bool FindItemBorder()
     {
-        var find = ImageSearch.FindImageInWindow(process!, Resources.ResultCorner, tradingPostPoint!.Value.X + 271, tradingPostPoint!.Value.Y + 136, Resources.ResultCorner.Width, Resources.ResultCorner.Height);
-        return find == null;
-    }
-
-    private static bool FindGoldCoin()
-    {
-        var find = ImageSearch.FindImageInWindow(process!, Resources.GoldCoin, tradingPostPoint!.Value.X + 462, tradingPostPoint!.Value.Y + 280, Resources.GoldCoin.Width, Resources.GoldCoin.Height + 24, 0.9);
+        var find = ImageSearch.FindImageInWindow(process!, Resources.ResultCorner, tradingPostPoint!.Value.X + 271, tradingPostPoint!.Value.Y + 136, Resources.ResultCorner.Width, Resources.ResultCorner.Height, 0.98);
         return find == null;
     }
 
@@ -1940,7 +2447,7 @@ internal static class GW2Flipper
                 _ = Directory.CreateDirectory(directory);
             }
 
-            var fileName = Path.Combine(directory, $"{DateTime.Now.ToString("HH-mm-ss-ffff").Replace(":", string.Empty)}.bmp");
+            var fileName = Path.Combine(directory, $"{DateTime.Now:HH-mm-ss-ffff}.bmp");
             Logger.Error($"File saved as {fileName}");
             image.Save(fileName, ImageFormat.Bmp);
         }

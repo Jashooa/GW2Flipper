@@ -17,9 +17,12 @@ Search
 	Coords		59,154 middle = 70,165
 	Size		208,22
     Mid         163,165
-Home
+Trading Post Home
 	Coords		375,57
 	Size		48,48
+Home
+    Coords      377,58
+    Size        44,18
 Buy Items
 	Coords		484,40
 	Size		164,100

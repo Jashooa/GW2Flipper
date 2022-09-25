@@ -113,9 +113,9 @@ namespace GW2Flipper.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
-        internal static System.Drawing.Bitmap GoldCoin {
+        internal static System.Drawing.Bitmap Home {
             get {
-                object obj = ResourceManager.GetObject("GoldCoin", resourceCulture);
+                object obj = ResourceManager.GetObject("Home", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
@@ -206,16 +206,6 @@ namespace GW2Flipper.Properties {
         internal static System.Drawing.Bitmap SuccessOK {
             get {
                 object obj = ResourceManager.GetObject("SuccessOK", resourceCulture);
-                return ((System.Drawing.Bitmap)(obj));
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized resource of type System.Drawing.Bitmap.
-        /// </summary>
-        internal static System.Drawing.Bitmap TradingPostHome {
-            get {
-                object obj = ResourceManager.GetObject("TradingPostHome", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }

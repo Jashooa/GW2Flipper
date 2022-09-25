@@ -41,15 +41,6 @@ public static class BitmapExtensions
         return bitmap;
     }
 
-    private static double Difference(Color c1, Color c2)
-    {
-        double diffR = Math.Abs(c1.R - c2.R);
-        double diffG = Math.Abs(c1.G - c2.G);
-        double diffB = Math.Abs(c1.B - c2.B);
-
-        return 1.0 - (Math.Sqrt((diffR * diffR) + (diffG * diffG) + (diffB * diffB)) / 255.0);
-    }
-
     public static Bitmap Invert(this Bitmap bitmap)
     {
         var bitmapData = bitmap.LockBits(new Rectangle(0, 0, bitmap.Width, bitmap.Height), ImageLockMode.ReadWrite, PixelFormat.Format32bppArgb);
@@ -150,9 +141,19 @@ public static class BitmapExtensions
             {
                 gfx.FillRectangle(border, 0, 0, newWidth, newHeight);
             }
+
             gfx.DrawImage(bitmap, new Rectangle(borderSize, borderSize, bitmap.Width, bitmap.Height));
         }
 
         return (Bitmap)newImage;
+    }
+
+    private static double Difference(Color c1, Color c2)
+    {
+        double diffR = Math.Abs(c1.R - c2.R);
+        double diffG = Math.Abs(c1.G - c2.G);
+        double diffB = Math.Abs(c1.B - c2.B);
+
+        return 1.0 - (Math.Sqrt((diffR * diffR) + (diffG * diffG) + (diffB * diffB)) / 255.0);
     }
 }

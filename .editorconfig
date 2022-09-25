@@ -431,6 +431,25 @@ dotnet_naming_rule.parameters_rule.style                = camel_case_style
 dotnet_naming_rule.parameters_rule.severity             = warning
 
 ##########################################
+# My Rules
+##########################################
+# IDE0051: Remove unused private members
+dotnet_diagnostic.IDE0051.severity = none
+# IDE0052: Remove unread private members
+dotnet_diagnostic.IDE0052.severity = none
+# RCS1213: Remove unused member declaration.
+dotnet_diagnostic.RCS1213.severity = none
+# RCS1234: Duplicate enum value.
+dotnet_diagnostic.RCS1234.severity = none
+# CA1069: Enums values should not be duplicated
+dotnet_diagnostic.CA1069.severity = none
+# SA1120: Comments should contain text
+dotnet_diagnostic.SA1120.severity = none
+# SA0001: XML comment analysis is disabled due to project configuration
+dotnet_diagnostic.SA0001.severity = none
+
+
+##########################################
 # License
 ##########################################
 # The following applies as to the .editorconfig file ONLY, and is
