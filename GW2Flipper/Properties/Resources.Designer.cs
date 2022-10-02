@@ -73,6 +73,16 @@ namespace GW2Flipper.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
+        internal static System.Drawing.Bitmap BuyInstantly {
+            get {
+                object obj = ResourceManager.GetObject("BuyInstantly", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
         internal static System.Drawing.Bitmap BuyItemsActive {
             get {
                 object obj = ResourceManager.GetObject("BuyItemsActive", resourceCulture);
@@ -123,9 +133,29 @@ namespace GW2Flipper.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
+        internal static System.Drawing.Bitmap ListItem {
+            get {
+                object obj = ResourceManager.GetObject("ListItem", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
         internal static System.Drawing.Bitmap LoadMore {
             get {
                 object obj = ResourceManager.GetObject("LoadMore", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap NewDelivery {
+            get {
+                object obj = ResourceManager.GetObject("NewDelivery", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
@@ -163,6 +193,16 @@ namespace GW2Flipper.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
+        internal static System.Drawing.Bitmap PlaceOrder {
+            get {
+                object obj = ResourceManager.GetObject("PlaceOrder", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
         internal static System.Drawing.Bitmap Qty {
             get {
                 object obj = ResourceManager.GetObject("Qty", resourceCulture);
@@ -186,6 +226,16 @@ namespace GW2Flipper.Properties {
         internal static System.Drawing.Bitmap ReturnToGame {
             get {
                 object obj = ResourceManager.GetObject("ReturnToGame", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap SellInstantly {
+            get {
+                object obj = ResourceManager.GetObject("SellInstantly", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }

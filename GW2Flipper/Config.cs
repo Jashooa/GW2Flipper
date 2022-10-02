@@ -37,6 +37,8 @@ internal class Config
 
     public double ProfitRange { get; set; }
 
+    public int UpdateListTime { get; set; }
+
     public bool UseApiPrices { get; set; }
 
     public List<Dictionary<string, string>> Arguments { get; set; } = null!;

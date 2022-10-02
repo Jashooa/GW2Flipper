@@ -19,6 +19,9 @@ internal static class OCR
         { " Qil", " Oil" },
         { "lcebrood", "Icebrood" },
         { "Baim", "Balm" },
+        { "Cre\n", "Ore\n" },
+        { "Axiquiot\n", "Axiquiotl\n" },
+        { "Piguant", "Piquant" },
     };
 
     public static string ReadName(Bitmap bitmap, Color color)
@@ -49,8 +52,12 @@ internal static class OCR
             Logger.Debug($"Mean confidence: {page.MeanConfidence}");
         }
 
+        var pretext = text;
         text = StringRepair(text);
-        Logger.Debug($"Text: {text}");
+        if (pretext != text)
+        {
+            Logger.Debug($"Repaired {pretext} to {text}");
+        }
 
         return text;
     }
@@ -64,7 +71,7 @@ internal static class OCR
             text = text.Replace(fix.Key, fix.Value);
         }
 
-        return text.Trim();
+        return text.TrimEnd();
     }
 
     /*public static string ReadNameIron(Bitmap bitmap, Color color)

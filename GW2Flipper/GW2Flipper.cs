@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Globalization;
+using System.Text.Json;
 
 using F23.StringSimilarity;
 
@@ -14,6 +15,7 @@ using global::GW2Flipper.Properties;
 using global::GW2Flipper.Utility;
 
 using Gw2Sharp;
+using Gw2Sharp.WebApi.Exceptions;
 
 using HtmlAgilityPack;
 
@@ -27,7 +29,6 @@ internal static class GW2Flipper
     private static readonly List<BuyItem> BuyItemsList = new();
     private static readonly List<BuyItem> RemoveItemsList = new();
     private static readonly Connection ApiConnection = new(Config.ApiKey);
-    private static readonly Random Random = new();
 
     private static readonly Dictionary<string, Color> RarityColors = new()
     {
@@ -207,7 +208,7 @@ internal static class GW2Flipper
 
     private static async Task UpdateBuyList()
     {
-        if (DateTime.Now - timeSinceLastBuyListGenerate < TimeSpan.FromMinutes(15))
+        if (DateTime.Now - timeSinceLastBuyListGenerate < TimeSpan.FromMinutes(Config.UpdateListTime))
         {
             return;
         }
@@ -265,19 +266,23 @@ internal static class GW2Flipper
 
                     if (Config.RemoveUnprofitable)
                     {
-                        newItemsList.Add(newItem);
+                        var findIndex = newItemsList.FindIndex(x => x.Id == itemId);
+                        if (findIndex == -1)
+                        {
+                            newItemsList.Add(newItem);
+                        }
                     }
                     else
                     {
                         // Add or update here
                         var findIndex = BuyItemsList.FindIndex(x => x.Id == itemId);
-                        if (findIndex != -1)
+                        if (findIndex == -1)
                         {
-                            BuyItemsList[findIndex] = newItem;
+                            BuyItemsList.Add(newItem);
                         }
                         else
                         {
-                            BuyItemsList.Add(newItem);
+                            BuyItemsList[findIndex] = newItem;
                         }
                     }
                 }
@@ -298,7 +303,8 @@ internal static class GW2Flipper
             BuyItemsList.AddRange(newItemsList);
         }
 
-        BuyItemsList.Sort((x, y) => y.Profit.CompareTo(x.Profit));
+        // BuyItemsList.Sort((x, y) => y.Profit.CompareTo(x.Profit));
+        BuyItemsList.Shuffle();
 
         Logger.Info($"Items: {BuyItemsList.Count}");
     }
@@ -386,6 +392,8 @@ internal static class GW2Flipper
             tradingPostPoint = ImageSearch.FindImageInFullWindow(process!, Resources.TradingPostLion);
             Logger.Info($"Found trading post at: {tradingPostPoint}");
 
+            Input.KeyPress(process!, VirtualKeyCode.VK_M);
+
             await Task.Delay(2000);
         }
     }
@@ -419,8 +427,7 @@ internal static class GW2Flipper
         await OpenTradingPost();
 
         // Click take all
-        Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 179, tradingPostPoint!.Value.Y + 685);
-        Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 179, tradingPostPoint!.Value.Y + 685);
+        TakeNewDelivery();
 
         Func<bool>? findFunc = null;
         switch (screen)
@@ -495,6 +502,14 @@ internal static class GW2Flipper
         await Task.Delay(1000);
     }
 
+    private static void TakeNewDelivery()
+    {
+        if (ImageSearch.FindImageInWindow(process!, Resources.NewDelivery, tradingPostPoint!.Value.X + 70, tradingPostPoint!.Value.Y + 445, Resources.NewDelivery.Width, Resources.NewDelivery.Height, 0.9) != null)
+        {
+            Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 179, tradingPostPoint!.Value.Y + 685);
+        }
+    }
+
     private static async Task CloseItemWindow()
     {
         Input.MouseMove(process!, tradingPostPoint!.Value.X + 777, tradingPostPoint!.Value.Y + 140);
@@ -519,6 +534,8 @@ internal static class GW2Flipper
             // Check if filter isn't open
             if (ImageSearch.FindImageInWindow(process!, Resources.FilterOpen, tradingPostPoint!.Value.X + 50, tradingPostPoint!.Value.Y + 182, Resources.FilterOpen.Width, Resources.FilterOpen.Height, 0.9) == null)
             {
+                await Task.Delay(200);
+
                 // Click filter cog
                 Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 287, tradingPostPoint!.Value.Y + 165);
 
@@ -549,17 +566,18 @@ internal static class GW2Flipper
         // Click search bar
         Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 163, tradingPostPoint!.Value.Y + 165);
 
-        if (screen != TradingPostScreen.Buy)
+        // if (ImageSearch.FindImageInWindow(process!, Resources.TradingPostLion, tradingPostPoint!.Value.X, tradingPostPoint!.Value.Y, Resources.TradingPostLion.Width, Resources.TradingPostLion.Height) != null)
+        if (ImageSearch.FindImageInWindow(process!, Resources.Home, tradingPostPoint!.Value.X + 377, tradingPostPoint!.Value.Y + 58, Resources.Home.Width, Resources.Home.Height, 0.9) != null)
         {
-            // Select all
-            Input.KeyPressWithModifier(process!, VirtualKeyCode.VK_A, false, true, false);
+            if (screen != TradingPostScreen.Buy)
+            {
+                // Select all
+                Input.KeyPressWithModifier(process!, VirtualKeyCode.VK_A, false, true, false);
 
-            // Backspace
-            Input.KeyPress(process!, VirtualKeyCode.BACK);
-        }
+                // Backspace
+                Input.KeyPress(process!, VirtualKeyCode.BACK);
+            }
 
-        if (ImageSearch.FindImageInWindow(process!, Resources.TradingPostLion, tradingPostPoint!.Value.X, tradingPostPoint!.Value.Y, Resources.TradingPostLion.Width, Resources.TradingPostLion.Height) != null)
-        {
             // Paste in name
             Input.KeyStringSendClipboard(process!, itemInfo.Name.MaxSize(30));
             Input.KeyPress(process!, VirtualKeyCode.RETURN);
@@ -587,26 +605,6 @@ internal static class GW2Flipper
     }
 
     private static int GetItemWindowPrice(int offset)
-    {
-        /*Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 402, tradingPostPoint.Value.Y + 236 + offset);
-        Input.KeyPress(process!, VirtualKeyCode.TAB);
-        var goldAmount = Convert.ToInt32(Input.GetSelectedText(process!));
-        Input.KeyPress(process!, VirtualKeyCode.TAB);
-        var silverAmount = Convert.ToInt32(Input.GetSelectedText(process!));
-        Input.KeyPress(process!, VirtualKeyCode.TAB);
-        var copperAmount = Convert.ToInt32(Input.GetSelectedText(process!));*/
-
-        Input.MouseMoveAndDoubleClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 412, tradingPostPoint.Value.Y + 279 + offset, 75);
-        var goldAmount = Convert.ToInt32(Input.GetSelectedText(process!));
-        Input.MouseMoveAndDoubleClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 502, tradingPostPoint.Value.Y + 279 + offset, 75);
-        var silverAmount = Convert.ToInt32(Input.GetSelectedText(process!));
-        Input.MouseMoveAndDoubleClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 576, tradingPostPoint.Value.Y + 279 + offset, 75);
-        var copperAmount = Convert.ToInt32(Input.GetSelectedText(process!));
-
-        return ToCurrency(goldAmount, silverAmount, copperAmount);
-    }
-
-    private static int GetItemWindowPriceWithDismiss(int offset)
     {
         DismissSuccessWithOffset(offset);
         Input.MouseMoveAndDoubleClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 412, tradingPostPoint.Value.Y + 279 + offset, 75);
@@ -638,6 +636,16 @@ internal static class GW2Flipper
         Input.KeyStringSend(process!, ToCopper(coins).ToString());
     }
 
+    private static int GetItemWindowQuantity(int offset)
+    {
+        DismissSuccessWithOffset(offset);
+        Input.MouseMoveAndDoubleClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 402, tradingPostPoint.Value.Y + 236 + offset);
+        DismissSuccessWithOffset(offset);
+        var quantity = Convert.ToInt32(Input.GetSelectedText(process!));
+
+        return quantity;
+    }
+
     private static async Task SellItemNonApi(BuyItem item, List<Gw2Sharp.WebApi.V2.Models.CommerceTransactionCurrent>? currentSellingList = null)
     {
         using var apiClient = new Gw2Client(ApiConnection);
@@ -648,7 +656,7 @@ internal static class GW2Flipper
         {
             itemInfo = await apiClient.WebApi.V2.Items.GetAsync(item.Id);
         }
-        catch (Exception e)
+        catch (RequestException e)
         {
             Logger.Error(e);
             return;
@@ -704,8 +712,7 @@ internal static class GW2Flipper
         var qtyPoint = ImageSearch.FindImageInWindow(process!, Resources.Qty, tradingPostPoint!.Value.X + 324, tradingPostPoint!.Value.Y + 155, Resources.Qty.Width, Resources.Qty.Height + 72, 0.9);
         if (qtyPoint == null)
         {
-            Logger.Warn("qtyPoint null");
-            LogImage();
+            Logger.Debug("qtyPoint null");
             return;
         }
 
@@ -726,8 +733,7 @@ internal static class GW2Flipper
             var resultPoint = ImageSearch.FindImageInWindow(process!, Resources.ResultCorner, resultsPoint.X, resultsPoint.Y + (y * 61), Resources.ResultCorner.Width, Resources.ResultCorner.Height);
             if (resultPoint == null)
             {
-                Logger.Debug($"Result border not found at {resultsPoint.X}, {resultsPoint.Y + (y * 61)}, qtyPoint: {qtyPoint}");
-                LogImage();
+                Logger.Debug("Result point null");
                 break;
             }
 
@@ -741,13 +747,10 @@ internal static class GW2Flipper
             }
             catch (TimeoutException)
             {
-                Logger.Warn("Item border didn't appear");
-                LogImage();
+                Logger.Debug("Item border didn't appear");
                 await CloseItemWindow();
                 goto SellItem;
             }
-
-            DismissSuccess();
 
             // Wait for "vendor" to show up
             try
@@ -756,20 +759,16 @@ internal static class GW2Flipper
             }
             catch (TimeoutException)
             {
-                Logger.Warn("Vendor E didn't appear");
-                LogImage();
+                Logger.Debug("Vendor E didn't appear");
                 await CloseItemWindow();
                 goto SellItem;
             }
-
-            DismissSuccess();
 
             // Find position of 'e' in Vendor to set the offset for other UI positions
             var vendorEPos = ImageSearch.FindImageInWindow(process!, Resources.VendorE, tradingPostPoint!.Value.X + 345, tradingPostPoint!.Value.Y + 176, Resources.VendorE.Width, Resources.VendorE.Height + 30, 0.9);
             if (vendorEPos == null)
             {
-                Logger.Warn("vendorEPos null");
-                LogImage();
+                Logger.Debug("vendorEPos null");
                 await CloseItemWindow();
                 goto SellItem;
             }
@@ -788,7 +787,6 @@ internal static class GW2Flipper
             if (string.IsNullOrEmpty(capturedName))
             {
                 Logger.Debug("Empty string returned");
-                LogImage();
                 await CloseItemWindow();
                 continue;
             }
@@ -797,20 +795,12 @@ internal static class GW2Flipper
             var jw = new JaroWinkler();
             var nameDistance = 1.0 - jw.Distance(itemInfo.Name.RemoveDiacritics().ToLower(), capturedName.ToLower());
             Logger.Debug($"Item name: {itemInfo.Name} Captured name: {capturedName} Distance: {nameDistance}");
-            if (nameDistance < 1.0)
-            {
-                Logger.Debug("String distance below 1");
-                LogImage();
-            }
-
             if (nameDistance < Config.MinStringSimilarity)
             {
                 Logger.Debug("Item name too different");
                 await CloseItemWindow();
                 continue;
             }
-
-            DismissSuccessWithOffset(offset);
 
             // Wait for available to show up
             try
@@ -819,7 +809,7 @@ internal static class GW2Flipper
             }
             catch (TimeoutException)
             {
-                Logger.Warn("Available didn't appear");
+                Logger.Debug("Available didn't appear");
                 await CloseItemWindow();
                 goto SellItem;
             }
@@ -830,12 +820,11 @@ internal static class GW2Flipper
             // Get buy price
             try
             {
-                buyCurrencyAmount = GetItemWindowPriceWithDismiss(offset);
+                buyCurrencyAmount = GetItemWindowPrice(offset);
             }
             catch (FormatException e)
             {
                 Logger.Error(e);
-                LogImage();
                 await CloseItemWindow();
                 goto SellItem;
             }
@@ -843,18 +832,16 @@ internal static class GW2Flipper
             DismissSuccessWithOffset(offset);
 
             // Click highest current seller
-            await Task.Delay(100);
             Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint.Value.X + 542, tradingPostPoint.Value.Y + 499 + offset);
 
             // Get sell price
             try
             {
-                sellCurrencyAmount = GetItemWindowPriceWithDismiss(offset);
+                sellCurrencyAmount = GetItemWindowPrice(offset);
             }
             catch (FormatException e)
             {
                 Logger.Error(e);
-                LogImage();
                 await CloseItemWindow();
                 goto SellItem;
             }
@@ -887,8 +874,6 @@ internal static class GW2Flipper
                 buyPrice++;
             }
 
-            DismissSuccessWithOffset(offset);
-
             // Check profit is within range
             var profit = GetProfit(item.BuyPrice, sellPrice);
             var lowestProfit = (int)(item.Profit * Config.ProfitRange);
@@ -900,7 +885,25 @@ internal static class GW2Flipper
                 if (Config.SellForBestIfUnderRange)
                 {
                     Logger.Info($"Selling for best near profit range {lowestProfit}");
-                    var listings = await apiClient.WebApi.V2.Commerce.Listings.GetAsync(item.Id);
+
+                    Gw2Sharp.WebApi.V2.Models.CommerceListings? listings = null;
+                    try
+                    {
+                        listings = await apiClient.WebApi.V2.Commerce.Listings.GetAsync(item.Id);
+                    }
+                    catch (RequestException e)
+                    {
+                        Logger.Error(e);
+                        await CloseItemWindow();
+                        goto SellItem;
+                    }
+
+                    if (listings == null)
+                    {
+                        Logger.Warn("listings null");
+                        await CloseItemWindow();
+                        goto SellItem;
+                    }
 
                     var profitableSell = GetSellPriceForProfit(item.BuyPrice, lowestProfit);
                     sellPrice = listings.Sells.Where(x => x.UnitPrice >= profitableSell).Min(x => x.UnitPrice);
@@ -911,12 +914,11 @@ internal static class GW2Flipper
                     int? enteredAmount = null;
                     try
                     {
-                        enteredAmount = GetItemWindowPriceWithDismiss(offset);
+                        enteredAmount = GetItemWindowPrice(offset);
                     }
                     catch (FormatException e)
                     {
                         Logger.Error(e);
-                        LogImage();
                         await CloseItemWindow();
                         goto SellItem;
                     }
@@ -943,6 +945,8 @@ internal static class GW2Flipper
                 sellPrice--;
             }
 
+            DismissSuccessWithOffset(offset);
+
             // Set quantity to max
             Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 625, tradingPostPoint.Value.Y + 240 + offset);
             await Task.Delay(100);
@@ -950,10 +954,20 @@ internal static class GW2Flipper
 
             Logger.Info($"Selling for {sellPrice} coins");
 
+            DismissSuccessWithOffset(offset);
+
             // Sell item
-            await Task.Delay(200);
-            Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 440, tradingPostPoint.Value.Y + 373 + offset);
-            await Task.Delay(200);
+            if (ImageSearch.FindImageInWindow(process!, Resources.ListItem, tradingPostPoint!.Value.X + 382, tradingPostPoint!.Value.Y + 364 + offset, Resources.ListItem.Width, Resources.ListItem.Height, 0.5) != null)
+            {
+                Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 440, tradingPostPoint.Value.Y + 373 + offset, 100);
+                await Task.Delay(500);
+            }
+            else
+            {
+                await CloseItemWindow();
+                goto SellItem;
+            }
+
             await CloseItemWindow();
             break;
         }
@@ -969,9 +983,13 @@ internal static class GW2Flipper
         {
             itemInfo = await apiClient.WebApi.V2.Items.GetAsync(item.Id);
         }
-        catch (Exception e)
+        catch (RequestException e)
         {
             Logger.Error(e);
+            return;
+        }
+        catch (JsonException)
+        {
             return;
         }
 
@@ -981,7 +999,24 @@ internal static class GW2Flipper
             return;
         }
 
-        var itemPrices = await apiClient.WebApi.V2.Commerce.Prices.GetAsync(item.Id);
+        // Get item prices
+        Gw2Sharp.WebApi.V2.Models.CommercePrices? itemPrices = null;
+        try
+        {
+            itemPrices = await apiClient.WebApi.V2.Commerce.Prices.GetAsync(item.Id);
+        }
+        catch (RequestException e)
+        {
+            Logger.Error(e);
+            return;
+        }
+
+        if (itemPrices == null)
+        {
+            Logger.Warn("itemPrices null");
+            return;
+        }
+
         var buyCurrencyAmount = itemPrices.Buys.UnitPrice;
         var sellCurrencyAmount = itemPrices.Sells.UnitPrice;
 
@@ -995,9 +1030,6 @@ internal static class GW2Flipper
             await CloseItemWindow();
             break;
         }*/
-
-        var buyPrice = buyCurrencyAmount;
-        var sellPrice = sellCurrencyAmount;
 
         try
         {
@@ -1043,8 +1075,7 @@ internal static class GW2Flipper
         var qtyPoint = ImageSearch.FindImageInWindow(process!, Resources.Qty, tradingPostPoint!.Value.X + 324, tradingPostPoint!.Value.Y + 155, Resources.Qty.Width, Resources.Qty.Height + 72, 0.9);
         if (qtyPoint == null)
         {
-            Logger.Warn("qtyPoint null");
-            LogImage();
+            Logger.Debug("qtyPoint null");
             return;
         }
 
@@ -1065,8 +1096,7 @@ internal static class GW2Flipper
             var resultPoint = ImageSearch.FindImageInWindow(process!, Resources.ResultCorner, resultsPoint.X, resultsPoint.Y + (y * 61), Resources.ResultCorner.Width, Resources.ResultCorner.Height);
             if (resultPoint == null)
             {
-                Logger.Debug($"Result border not found at {resultsPoint.X}, {resultsPoint.Y + (y * 61)}, qtyPoint: {qtyPoint}");
-                LogImage();
+                Logger.Debug("Result point null");
                 break;
             }
 
@@ -1080,13 +1110,10 @@ internal static class GW2Flipper
             }
             catch (TimeoutException)
             {
-                Logger.Warn("Item border didn't appear");
-                LogImage();
+                Logger.Debug("Item border didn't appear");
                 await CloseItemWindow();
                 goto SellItem;
             }
-
-            DismissSuccess();
 
             // Wait for "vendor" to show up
             try
@@ -1095,20 +1122,16 @@ internal static class GW2Flipper
             }
             catch (TimeoutException)
             {
-                Logger.Warn("Vendor E didn't appear");
-                LogImage();
+                Logger.Debug("Vendor E didn't appear");
                 await CloseItemWindow();
                 goto SellItem;
             }
-
-            DismissSuccess();
 
             // Find position of 'e' in Vendor to set the offset for other UI positions
             var vendorEPos = ImageSearch.FindImageInWindow(process!, Resources.VendorE, tradingPostPoint!.Value.X + 345, tradingPostPoint!.Value.Y + 176, Resources.VendorE.Width, Resources.VendorE.Height + 30, 0.9);
             if (vendorEPos == null)
             {
-                Logger.Warn("vendorEPos null");
-                LogImage();
+                Logger.Debug("vendorEPos null");
                 await CloseItemWindow();
                 goto SellItem;
             }
@@ -1127,7 +1150,6 @@ internal static class GW2Flipper
             if (string.IsNullOrEmpty(capturedName))
             {
                 Logger.Debug("Empty string returned");
-                LogImage();
                 await CloseItemWindow();
                 continue;
             }
@@ -1136,20 +1158,12 @@ internal static class GW2Flipper
             var jw = new JaroWinkler();
             var nameDistance = 1.0 - jw.Distance(itemInfo.Name.RemoveDiacritics().ToLower(), capturedName.ToLower());
             Logger.Debug($"Item name: {itemInfo.Name} Captured name: {capturedName} Distance: {nameDistance}");
-            if (nameDistance < 1.0)
-            {
-                Logger.Debug("String distance below 1");
-                LogImage();
-            }
-
             if (nameDistance < Config.MinStringSimilarity)
             {
                 Logger.Debug("Item name too different");
                 await CloseItemWindow();
                 continue;
             }
-
-            DismissSuccessWithOffset(offset);
 
             // Wait for available to show up
             try
@@ -1158,12 +1172,12 @@ internal static class GW2Flipper
             }
             catch (TimeoutException)
             {
-                Logger.Warn("Available didn't appear");
+                Logger.Debug("Available didn't appear");
                 await CloseItemWindow();
                 goto SellItem;
             }
 
-            DismissSuccessWithOffset(offset);
+            var sellPrice = sellCurrencyAmount;
 
             // Check profit is within range
             var profit = GetProfit(item.BuyPrice, sellPrice);
@@ -1176,7 +1190,25 @@ internal static class GW2Flipper
                 if (Config.SellForBestIfUnderRange)
                 {
                     Logger.Info($"Selling for best near profit range {lowestProfit}");
-                    var listings = await apiClient.WebApi.V2.Commerce.Listings.GetAsync(item.Id);
+
+                    Gw2Sharp.WebApi.V2.Models.CommerceListings? listings = null;
+                    try
+                    {
+                        listings = await apiClient.WebApi.V2.Commerce.Listings.GetAsync(item.Id);
+                    }
+                    catch (RequestException e)
+                    {
+                        Logger.Error(e);
+                        await CloseItemWindow();
+                        goto SellItem;
+                    }
+
+                    if (listings == null)
+                    {
+                        Logger.Warn("listings null");
+                        await CloseItemWindow();
+                        goto SellItem;
+                    }
 
                     var profitableSell = GetSellPriceForProfit(item.BuyPrice, lowestProfit);
                     sellPrice = listings.Sells.Where(x => x.UnitPrice >= profitableSell).Min(x => x.UnitPrice);
@@ -1188,6 +1220,11 @@ internal static class GW2Flipper
                 }
             }
 
+            DismissSuccessWithOffset(offset);
+
+            // Click highest current seller
+            Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint.Value.X + 542, tradingPostPoint.Value.Y + 499 + offset);
+
             // Check if not my listing
             if ((Config.UndercutSells && currentSellingList == null) || (Config.UndercutSells && currentSellingList?.Any(x => x.ItemId == item.Id && x.Price == sellCurrencyAmount) == false))
             {
@@ -1196,26 +1233,7 @@ internal static class GW2Flipper
 
             SetItemWindowPrice(offset, sellPrice);
 
-            // Get buy price
-            int? enteredAmount = null;
-            try
-            {
-                enteredAmount = GetItemWindowPriceWithDismiss(offset);
-            }
-            catch (FormatException e)
-            {
-                Logger.Error(e);
-                LogImage();
-                await CloseItemWindow();
-                goto SellItem;
-            }
-
-            if (enteredAmount != sellPrice)
-            {
-                Logger.Debug("Didn't enter price correctly");
-                await CloseItemWindow();
-                goto SellItem;
-            }
+            DismissSuccessWithOffset(offset);
 
             // Set quantity to max
             Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 625, tradingPostPoint.Value.Y + 240 + offset);
@@ -1224,10 +1242,61 @@ internal static class GW2Flipper
 
             Logger.Info($"Selling for {sellPrice} coins");
 
+            DismissSuccessWithOffset(offset);
+
             // Sell item
-            await Task.Delay(200);
-            Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 440, tradingPostPoint.Value.Y + 373 + offset);
-            await Task.Delay(200);
+            if (ImageSearch.FindImageInWindow(process!, Resources.ListItem, tradingPostPoint!.Value.X + 382, tradingPostPoint!.Value.Y + 364 + offset, Resources.ListItem.Width, Resources.ListItem.Height, 0.5) != null)
+            {
+                Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 440, tradingPostPoint.Value.Y + 373 + offset, 100);
+                await Task.Delay(100);
+            }
+            else if (ImageSearch.FindImageInWindow(process!, Resources.SellInstantly, tradingPostPoint!.Value.X + 382, tradingPostPoint!.Value.Y + 364 + offset, Resources.SellInstantly.Width, Resources.SellInstantly.Height, 0.5) != null)
+            {
+                Logger.Warn("Test code!!!!!!!!!!!!!!!");
+                Logger.Warn("Wrong sell button");
+                Logger.Warn("Test code!!!!!!!!!!!!!!!");
+
+                // Check entered price
+                /*int? enteredAmount = null;
+                try
+                {
+                    enteredAmount = GetItemWindowPrice(offset);
+                }
+                catch (FormatException e)
+                {
+                    Logger.Error(e);
+                    await CloseItemWindow();
+                    goto SellItem;
+                }
+
+                if (enteredAmount != sellPrice)
+                {
+                    Logger.Debug("Didn't enter price correctly");
+                    await CloseItemWindow();
+                    goto SellItem;
+                }
+
+                LogImage();
+                Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 440, tradingPostPoint.Value.Y + 373 + offset, 100);
+                await Task.Delay(100);
+
+                y--;
+
+                await CloseItemWindow();
+                await Task.Delay(1000);
+                continue;*/
+
+                LogImage();
+                await CloseItemWindow();
+                goto SellItem;
+            }
+            else
+            {
+                Logger.Debug("Couldn't find sell button");
+                await CloseItemWindow();
+                goto SellItem;
+            }
+
             await CloseItemWindow();
             break;
         }
@@ -1243,16 +1312,47 @@ internal static class GW2Flipper
         apiClient.Mumble.Update();
         var character = apiClient.Mumble.CharacterName;
 
-        var backpack = await apiClient.WebApi.V2.Characters[character].Inventory.GetAsync();
+        Gw2Sharp.WebApi.V2.Models.CharactersInventory? backpack = null;
+        try
+        {
+            backpack = await apiClient.WebApi.V2.Characters[character].Inventory.GetAsync();
+        }
+        catch (RequestException e)
+        {
+            Logger.Error(e);
+            return;
+        }
+
+        if (backpack == null)
+        {
+            Logger.Debug("backpack null");
+            return;
+        }
+
         var inventoryItems = backpack.Bags.SelectMany(x => x.Inventory.Select(y => y?.Id));
 
-        var currentSelling = await apiClient.WebApi.V2.Commerce.Transactions.Current.Sells.PageAsync(0);
-        var currentSellingList = currentSelling.ToList();
-        var numSellingPages = currentSelling.HttpResponseInfo?.PageTotal;
-        for (var i = 1; i < numSellingPages; i++)
+        List<Gw2Sharp.WebApi.V2.Models.CommerceTransactionCurrent>? currentSellingList = null;
+        try
         {
-            currentSelling = await apiClient.WebApi.V2.Commerce.Transactions.Current.Sells.PageAsync(i);
-            currentSellingList = currentSellingList.Concat(currentSelling.ToList()).ToList();
+            var currentSelling = await apiClient.WebApi.V2.Commerce.Transactions.Current.Sells.PageAsync(0);
+            currentSellingList = currentSelling.ToList();
+            var numSellingPages = currentSelling.HttpResponseInfo?.PageTotal;
+            for (var i = 1; i < numSellingPages; i++)
+            {
+                currentSelling = await apiClient.WebApi.V2.Commerce.Transactions.Current.Sells.PageAsync(i);
+                currentSellingList = currentSellingList.Concat(currentSelling.ToList()).ToList();
+            }
+        }
+        catch (RequestException e)
+        {
+            Logger.Error(e);
+            return;
+        }
+
+        if (currentSellingList == null)
+        {
+            Logger.Debug("currentSellingList null");
+            return;
         }
 
         foreach (var item in BuyItemsList)
@@ -1287,7 +1387,7 @@ internal static class GW2Flipper
         {
             itemInfo = await apiClient.WebApi.V2.Items.GetAsync(item.Id);
         }
-        catch (Exception e)
+        catch (RequestException e)
         {
             Logger.Error(e);
             return;
@@ -1346,8 +1446,7 @@ internal static class GW2Flipper
         var qtyPoint = ImageSearch.FindImageInWindow(process!, Resources.Qty, tradingPostPoint!.Value.X + 324, tradingPostPoint!.Value.Y + 155, Resources.Qty.Width, Resources.Qty.Height + 72, 0.9);
         if (qtyPoint == null)
         {
-            Logger.Warn("qtyPoint null");
-            LogImage();
+            Logger.Debug("qtyPoint null");
             return;
         }
 
@@ -1368,8 +1467,7 @@ internal static class GW2Flipper
             var resultPoint = ImageSearch.FindImageInWindow(process!, Resources.ResultCorner, resultsPoint.X, resultsPoint.Y + (y * 61), Resources.ResultCorner.Width, Resources.ResultCorner.Height);
             if (resultPoint == null)
             {
-                Logger.Debug($"Result border not found at {resultsPoint.X}, {resultsPoint.Y + (y * 61)}, qtyPoint: {qtyPoint}");
-                LogImage();
+                Logger.Debug("Result point null");
                 break;
             }
 
@@ -1383,8 +1481,7 @@ internal static class GW2Flipper
             }
             catch (TimeoutException)
             {
-                Logger.Warn("Item border didn't appear");
-                LogImage();
+                Logger.Debug("Item border didn't appear");
                 await CloseItemWindow();
                 goto BuyItem;
             }
@@ -1396,8 +1493,7 @@ internal static class GW2Flipper
             }
             catch (TimeoutException)
             {
-                Logger.Warn("Vendor E didn't appear");
-                LogImage();
+                Logger.Debug("Vendor E didn't appear");
                 await CloseItemWindow();
                 goto BuyItem;
             }
@@ -1406,8 +1502,7 @@ internal static class GW2Flipper
             var vendorEPos = ImageSearch.FindImageInWindow(process!, Resources.VendorE, tradingPostPoint!.Value.X + 345, tradingPostPoint!.Value.Y + 176, Resources.VendorE.Width, Resources.VendorE.Height + 30, 0.9);
             if (vendorEPos == null)
             {
-                Logger.Warn("vendorEPos null");
-                LogImage();
+                Logger.Debug("vendorEPos null");
                 await CloseItemWindow();
                 goto BuyItem;
             }
@@ -1426,7 +1521,6 @@ internal static class GW2Flipper
             if (string.IsNullOrEmpty(capturedName))
             {
                 Logger.Debug("Empty string returned");
-                LogImage();
                 await CloseItemWindow();
                 continue;
             }
@@ -1435,12 +1529,6 @@ internal static class GW2Flipper
             var jw = new JaroWinkler();
             var nameDistance = 1.0 - jw.Distance(itemInfo.Name.RemoveDiacritics().ToLower(), capturedName.ToLower());
             Logger.Debug($"Item name: {itemInfo.Name} Captured name: {capturedName} Distance: {nameDistance}");
-            if (nameDistance < 1.0)
-            {
-                Logger.Debug("String distance below 1");
-                LogImage();
-            }
-
             if (nameDistance < Config.MinStringSimilarity)
             {
                 Logger.Debug("Item name too different");
@@ -1455,8 +1543,7 @@ internal static class GW2Flipper
             }
             catch (TimeoutException)
             {
-                Logger.Warn("Available didn't appear");
-                LogImage();
+                Logger.Debug("Available didn't appear");
                 await CloseItemWindow();
                 goto BuyItem;
             }
@@ -1472,13 +1559,13 @@ internal static class GW2Flipper
             catch (FormatException e)
             {
                 Logger.Error(e);
-                LogImage();
                 await CloseItemWindow();
                 goto BuyItem;
             }
 
+            DismissSuccessWithOffset(offset);
+
             // Click highest current buyer
-            await Task.Delay(100);
             Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint.Value.X + 254, tradingPostPoint.Value.Y + 499 + offset);
 
             // Get buy price
@@ -1489,7 +1576,6 @@ internal static class GW2Flipper
             catch (FormatException e)
             {
                 Logger.Error(e);
-                LogImage();
                 await CloseItemWindow();
                 goto BuyItem;
             }
@@ -1534,6 +1620,8 @@ internal static class GW2Flipper
                 break;
             }
 
+            DismissSuccessWithOffset(offset);
+
             if (Config.UndercutBuys)
             {
                 // Click to +1 copper
@@ -1545,6 +1633,8 @@ internal static class GW2Flipper
             quantity = quantity < 1 ? 1 : quantity;
 
             Logger.Info($"Buying {quantity} for {buyPrice} coins each");
+
+            DismissSuccessWithOffset(offset);
 
             if (quantity > 1)
             {
@@ -1558,10 +1648,20 @@ internal static class GW2Flipper
                 Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 448, tradingPostPoint.Value.Y + 240 + offset);
             }
 
+            DismissSuccessWithOffset(offset);
+
             // Buy item
-            await Task.Delay(200);
-            Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 440, tradingPostPoint.Value.Y + 373 + offset);
-            await Task.Delay(200);
+            if (ImageSearch.FindImageInWindow(process!, Resources.PlaceOrder, tradingPostPoint!.Value.X + 382, tradingPostPoint!.Value.Y + 364 + offset, Resources.PlaceOrder.Width, Resources.PlaceOrder.Height, 0.5) != null)
+            {
+                Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 440, tradingPostPoint.Value.Y + 373 + offset, 100);
+                await Task.Delay(500);
+            }
+            else
+            {
+                await CloseItemWindow();
+                goto BuyItem;
+            }
+
             await CloseItemWindow();
             break;
         }
@@ -1577,9 +1677,13 @@ internal static class GW2Flipper
         {
             itemInfo = await apiClient.WebApi.V2.Items.GetAsync(item.Id);
         }
-        catch (Exception e)
+        catch (RequestException e)
         {
             Logger.Error(e);
+            return;
+        }
+        catch (JsonException)
+        {
             return;
         }
 
@@ -1589,8 +1693,24 @@ internal static class GW2Flipper
             return;
         }
 
-        // Check prices
-        var itemPrices = await apiClient.WebApi.V2.Commerce.Prices.GetAsync(item.Id);
+        // Get item prices
+        Gw2Sharp.WebApi.V2.Models.CommercePrices? itemPrices = null;
+        try
+        {
+            itemPrices = await apiClient.WebApi.V2.Commerce.Prices.GetAsync(item.Id);
+        }
+        catch (RequestException e)
+        {
+            Logger.Error(e);
+            return;
+        }
+
+        if (itemPrices == null)
+        {
+            Logger.Warn("itemPrices null");
+            return;
+        }
+
         var buyCurrencyAmount = itemPrices.Buys.UnitPrice;
         var sellCurrencyAmount = itemPrices.Sells.UnitPrice;
 
@@ -1611,16 +1731,24 @@ internal static class GW2Flipper
             return;
         }
 
-        var buyPrice = buyCurrencyAmount;
-        var sellPrice = sellCurrencyAmount;
-
         // Check profit is within range
-        var profit = GetProfit(buyPrice, sellPrice);
+        var profit = GetProfit(buyCurrencyAmount, sellCurrencyAmount);
         if (profit < (item.Profit * Config.ErrorRange) || profit < 5)
         {
             Logger.Info($"Profit of {profit} outside of range");
             return;
         }
+
+        var buyPrice = buyCurrencyAmount;
+
+        if (Config.UndercutBuys)
+        {
+            buyPrice++;
+        }
+
+        // Calculate quantity
+        var quantity = Math.Min(Math.Min((int)(Config.MaxSpend / buyPrice), (int)(item.Sold * Config.Quantity)), 250);
+        quantity = quantity < 1 ? 1 : quantity;
 
         // Go to buy screen
         try
@@ -1669,8 +1797,7 @@ internal static class GW2Flipper
         var qtyPoint = ImageSearch.FindImageInWindow(process!, Resources.Qty, tradingPostPoint!.Value.X + 324, tradingPostPoint!.Value.Y + 155, Resources.Qty.Width, Resources.Qty.Height + 72, 0.9);
         if (qtyPoint == null)
         {
-            Logger.Warn("qtyPoint null");
-            LogImage();
+            Logger.Debug("qtyPoint null");
             return;
         }
 
@@ -1691,8 +1818,7 @@ internal static class GW2Flipper
             var resultPoint = ImageSearch.FindImageInWindow(process!, Resources.ResultCorner, resultsPoint.X, resultsPoint.Y + (y * 61), Resources.ResultCorner.Width, Resources.ResultCorner.Height);
             if (resultPoint == null)
             {
-                Logger.Debug($"Result border not found at {resultsPoint.X}, {resultsPoint.Y + (y * 61)}, qtyPoint: {qtyPoint}");
-                LogImage();
+                Logger.Debug("Result point null");
                 break;
             }
 
@@ -1706,10 +1832,8 @@ internal static class GW2Flipper
             }
             catch (TimeoutException)
             {
-                Logger.Warn("Item border didn't appear");
-                LogImage();
+                Logger.Debug("Item border didn't appear");
                 await CloseItemWindow();
-                // break;
                 goto BuyItem;
             }
 
@@ -1720,8 +1844,7 @@ internal static class GW2Flipper
             }
             catch (TimeoutException)
             {
-                Logger.Warn("Vendor E didn't appear");
-                LogImage();
+                Logger.Debug("Vendor E didn't appear");
                 await CloseItemWindow();
                 goto BuyItem;
             }
@@ -1730,8 +1853,7 @@ internal static class GW2Flipper
             var vendorEPos = ImageSearch.FindImageInWindow(process!, Resources.VendorE, tradingPostPoint!.Value.X + 345, tradingPostPoint!.Value.Y + 176, Resources.VendorE.Width, Resources.VendorE.Height + 30, 0.9);
             if (vendorEPos == null)
             {
-                Logger.Warn("vendorEPos null");
-                LogImage();
+                Logger.Debug("vendorEPos null");
                 await CloseItemWindow();
                 goto BuyItem;
             }
@@ -1750,7 +1872,6 @@ internal static class GW2Flipper
             if (string.IsNullOrEmpty(capturedName))
             {
                 Logger.Debug("Empty string returned");
-                LogImage();
                 await CloseItemWindow();
                 continue;
             }
@@ -1759,12 +1880,6 @@ internal static class GW2Flipper
             var jw = new JaroWinkler();
             var nameDistance = 1.0 - jw.Distance(itemInfo.Name.RemoveDiacritics().ToLower(), capturedName.ToLower());
             Logger.Debug($"Item name: {itemInfo.Name} Captured name: {capturedName} Distance: {nameDistance}");
-            if (nameDistance < 1.0)
-            {
-                Logger.Debug("String distance below 1");
-                LogImage();
-            }
-
             if (nameDistance < Config.MinStringSimilarity)
             {
                 Logger.Debug("Item name too different");
@@ -1779,44 +1894,19 @@ internal static class GW2Flipper
             }
             catch (TimeoutException)
             {
-                Logger.Warn("Available didn't appear");
-                LogImage();
+                Logger.Debug("Available didn't appear");
                 await CloseItemWindow();
                 goto BuyItem;
             }
 
-            if (Config.UndercutBuys)
-            {
-                buyPrice++;
-            }
+            DismissSuccessWithOffset(offset);
+
+            // Click highest current buyer
+            Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint.Value.X + 254, tradingPostPoint.Value.Y + 499 + offset);
 
             SetItemWindowPrice(offset, buyPrice);
 
-            // Check entered price
-            int? enteredAmount = null;
-            try
-            {
-                enteredAmount = GetItemWindowPrice(offset);
-            }
-            catch (FormatException e)
-            {
-                Logger.Error(e);
-                LogImage();
-                await CloseItemWindow();
-                goto BuyItem;
-            }
-
-            if (enteredAmount != buyPrice)
-            {
-                Logger.Debug("Didn't enter price correctly");
-                await CloseItemWindow();
-                goto BuyItem;
-            }
-
-            var quantity = Math.Min(Math.Min((int)(Config.MaxSpend / buyPrice), (int)(item.Sold * Config.Quantity)), 250);
-            quantity = quantity < 1 ? 1 : quantity;
-
-            Logger.Info($"Buying {quantity} for {buyPrice} coins each");
+            DismissSuccessWithOffset(offset);
 
             if (quantity > 1)
             {
@@ -1830,10 +1920,106 @@ internal static class GW2Flipper
                 Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 448, tradingPostPoint.Value.Y + 240 + offset);
             }
 
+            DismissSuccessWithOffset(offset);
+
             // Buy item
-            await Task.Delay(200);
-            Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 440, tradingPostPoint.Value.Y + 373 + offset);
-            await Task.Delay(200);
+            if (ImageSearch.FindImageInWindow(process!, Resources.PlaceOrder, tradingPostPoint!.Value.X + 382, tradingPostPoint!.Value.Y + 364 + offset, Resources.PlaceOrder.Width, Resources.PlaceOrder.Height, 0.5) != null)
+            {
+                Logger.Info($"Buying {quantity} for {buyPrice} coins each");
+
+                Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 440, tradingPostPoint.Value.Y + 373 + offset, 100);
+                await Task.Delay(100);
+            }
+            else if (ImageSearch.FindImageInWindow(process!, Resources.BuyInstantly, tradingPostPoint!.Value.X + 382, tradingPostPoint!.Value.Y + 364 + offset, Resources.BuyInstantly.Width, Resources.BuyInstantly.Height, 0.5) != null)
+            {
+                Logger.Warn("Test code!!!!!!!!!!!!!!!");
+                Logger.Warn("Wrong buy button");
+                Logger.Warn("Test code!!!!!!!!!!!!!!!");
+
+                // Click highest current seller
+                /*Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint.Value.X + 542, tradingPostPoint.Value.Y + 499 + offset);
+                await Task.Delay(200);
+
+                DismissSuccessWithOffset(offset);
+                Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint.Value.X + 542, tradingPostPoint.Value.Y + 499 + offset);
+
+                // Check entered price
+                int? enteredAmount = null;
+                try
+                {
+                    enteredAmount = GetItemWindowPrice(offset);
+                }
+                catch (FormatException e)
+                {
+                    Logger.Error(e);
+                    await CloseItemWindow();
+                    goto BuyItem;
+                }
+
+                if (enteredAmount != buyPrice)
+                {
+                    Logger.Debug("Didn't enter price correctly");
+                    await CloseItemWindow();
+                    goto BuyItem;
+                }
+
+                int? currentQuantity = null;
+                try
+                {
+                    currentQuantity = GetItemWindowQuantity(offset);
+                }
+                catch (FormatException e)
+                {
+                    Logger.Error(e);
+                    await CloseItemWindow();
+                    goto BuyItem;
+                }
+
+                if (currentQuantity == null)
+                {
+                    Logger.Debug("currentQuantity null");
+                    await CloseItemWindow();
+                    goto BuyItem;
+                }
+
+                if (quantity < currentQuantity.Value)
+                {
+                    DismissSuccessWithOffset(offset);
+
+                    Input.MouseMoveAndDoubleClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 402, tradingPostPoint.Value.Y + 236 + offset);
+                    Input.KeyStringSend(process!, quantity.ToString());
+                }
+                else
+                {
+                    quantity -= currentQuantity.Value;
+                }
+
+                Logger.Info($"Buying {currentQuantity.Value} for {buyPrice} coins each");
+
+                DismissSuccessWithOffset(offset);
+                LogImage();
+                Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 440, tradingPostPoint.Value.Y + 373 + offset, 100);
+                await Task.Delay(100);
+
+                if (quantity > 0)
+                {
+                    y--;
+
+                    await CloseItemWindow();
+                    continue;
+                }*/
+
+                LogImage();
+                await CloseItemWindow();
+                goto BuyItem;
+            }
+            else
+            {
+                Logger.Debug("Couldn't find buy button");
+                await CloseItemWindow();
+                goto BuyItem;
+            }
+
             await CloseItemWindow();
             break;
         }
@@ -1852,23 +2038,52 @@ internal static class GW2Flipper
         List<Gw2Sharp.WebApi.V2.Models.CommerceTransactionCurrent>? currentSellingList = null;
         if (!Config.BuyIfSelling)
         {
-            var currentSelling = await apiClient.WebApi.V2.Commerce.Transactions.Current.Sells.PageAsync(0);
-            currentSellingList = currentSelling.ToList();
-            var numSellingPages = currentSelling.HttpResponseInfo?.PageTotal;
-            for (var i = 1; i < numSellingPages; i++)
+            try
             {
-                currentSelling = await apiClient.WebApi.V2.Commerce.Transactions.Current.Sells.PageAsync(i);
-                currentSellingList = currentSellingList.Concat(currentSelling.ToList()).ToList();
+                var currentSelling = await apiClient.WebApi.V2.Commerce.Transactions.Current.Sells.PageAsync(0);
+                currentSellingList = currentSelling.ToList();
+                var numSellingPages = currentSelling.HttpResponseInfo?.PageTotal;
+                for (var i = 1; i < numSellingPages; i++)
+                {
+                    currentSelling = await apiClient.WebApi.V2.Commerce.Transactions.Current.Sells.PageAsync(i);
+                    currentSellingList = currentSellingList.Concat(currentSelling.ToList()).ToList();
+                }
+            }
+            catch (RequestException e)
+            {
+                Logger.Error(e);
+                return;
+            }
+
+            if (currentSellingList == null)
+            {
+                Logger.Debug("currentSellingList null");
+                return;
             }
         }
 
-        var currentBuying = await apiClient.WebApi.V2.Commerce.Transactions.Current.Buys.PageAsync(0);
-        var currentBuyingList = currentBuying.ToList();
-        var numBuyingPages = currentBuying.HttpResponseInfo?.PageTotal;
-        for (var i = 1; i < numBuyingPages; i++)
+        List<Gw2Sharp.WebApi.V2.Models.CommerceTransactionCurrent>? currentBuyingList = null;
+        try
         {
-            currentBuying = await apiClient.WebApi.V2.Commerce.Transactions.Current.Buys.PageAsync(i);
-            currentBuyingList = currentBuyingList.Concat(currentBuying.ToList()).ToList();
+            var currentBuying = await apiClient.WebApi.V2.Commerce.Transactions.Current.Buys.PageAsync(0);
+            currentBuyingList = currentBuying.ToList();
+            var numBuyingPages = currentBuying.HttpResponseInfo?.PageTotal;
+            for (var i = 1; i < numBuyingPages; i++)
+            {
+                currentBuying = await apiClient.WebApi.V2.Commerce.Transactions.Current.Buys.PageAsync(i);
+                currentBuyingList = currentBuyingList.Concat(currentBuying.ToList()).ToList();
+            }
+        }
+        catch (RequestException e)
+        {
+            Logger.Error(e);
+            return;
+        }
+
+        if (currentBuyingList == null)
+        {
+            Logger.Debug("currentBuyingList null");
+            return;
         }
 
         for (var endLoopIndex = currentLoopIndex + Config.BuysPerSellLoop; currentLoopIndex < endLoopIndex; currentLoopIndex++)
@@ -1895,22 +2110,30 @@ internal static class GW2Flipper
             // Check if already buying item
             if (currentBuyingList.Any(x => x.ItemId == item.Id))
             {
+                Gw2Sharp.WebApi.V2.Models.CommercePrices? itemPrices = null;
                 try
                 {
-                    var itemPrices = await apiClient.WebApi.V2.Commerce.Prices.GetAsync(item.Id);
-                    var highestPrice = itemPrices.Buys.UnitPrice;
-                    var price = currentBuyingList.Where(x => x.ItemId == item.Id).Max(x => x.Price);
-
-                    // If we haven't been undercut
-                    if (highestPrice <= price)
-                    {
-                        Logger.Info("Skipping, already buying");
-                        continue;
-                    }
+                    itemPrices = await apiClient.WebApi.V2.Commerce.Prices.GetAsync(item.Id);
                 }
-                catch (Exception e)
+                catch (RequestException e)
                 {
                     Logger.Error(e);
+                    continue;
+                }
+
+                if (itemPrices == null)
+                {
+                    Logger.Warn("itemPrices null");
+                    continue;
+                }
+
+                var highestPrice = itemPrices.Buys.UnitPrice;
+                var price = currentBuyingList.Where(x => x.ItemId == item.Id).Max(x => x.Price);
+
+                // If we haven't been undercut
+                if (highestPrice <= price)
+                {
+                    Logger.Info("Skipping, already buying");
                     continue;
                 }
 
@@ -1939,9 +2162,13 @@ internal static class GW2Flipper
         {
             itemInfo = await apiClient.WebApi.V2.Items.GetAsync(item.Id);
         }
-        catch (Exception e)
+        catch (RequestException e)
         {
             Logger.Error(e);
+            return;
+        }
+        catch (JsonException)
+        {
             return;
         }
 
@@ -1962,7 +2189,7 @@ internal static class GW2Flipper
             return;
         }
 
-        // Check if buying if not selected
+        // Check if buying is not selected
         if (ImageSearch.FindImageInWindow(process!, Resources.CurrentBuying, tradingPostPoint!.Value.X + 60, tradingPostPoint!.Value.Y + 224, Resources.CurrentBuying.Width, Resources.CurrentBuying.Height, 0.9) != null)
         {
             // Wait for search results to load
@@ -1977,6 +2204,8 @@ internal static class GW2Flipper
                 return;
             }
 
+            await Task.Delay(1000);
+
             // Click load more
             for (var i = 0; i < 5; i++)
             {
@@ -1988,6 +2217,7 @@ internal static class GW2Flipper
                 // Wait for load more button to appear
                 Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 650, tradingPostPoint!.Value.Y + 688);
                 await Task.Delay(500);
+                Input.MouseMove(process!, 540, 0);
                 try
                 {
                     await WaitWhile(() => ImageSearch.FindImageInWindow(process!, Resources.LoadMore, tradingPostPoint!.Value.X + 610, tradingPostPoint!.Value.Y + 679, Resources.LoadMore.Width, Resources.LoadMore.Height, 0.5) == null, 500, 5000);
@@ -2026,6 +2256,7 @@ internal static class GW2Flipper
             // Wait for load more button to appear
             Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 650, tradingPostPoint!.Value.Y + 688);
             await Task.Delay(500);
+            Input.MouseMove(process!, 540, 0);
             try
             {
                 await WaitWhile(() => ImageSearch.FindImageInWindow(process!, Resources.LoadMore, tradingPostPoint!.Value.X + 610, tradingPostPoint!.Value.Y + 679, Resources.LoadMore.Width, Resources.LoadMore.Height, 0.5) == null, 500, 5000);
@@ -2070,8 +2301,7 @@ internal static class GW2Flipper
         var qtyPoint = ImageSearch.FindImageInWindow(process!, Resources.Qty, tradingPostPoint.Value.X + 324, tradingPostPoint.Value.Y + 155, Resources.Qty.Width, Resources.Qty.Height + 72, 0.9);
         if (qtyPoint == null)
         {
-            Logger.Warn("qtyPoint null");
-            LogImage();
+            Logger.Debug("qtyPoint null");
             return;
         }
 
@@ -2092,6 +2322,7 @@ internal static class GW2Flipper
             var resultPoint = ImageSearch.FindImageInWindow(process!, Resources.ResultCorner, resultsPoint.X, resultsPoint.Y + (y * 61), Resources.ResultCorner.Width, Resources.ResultCorner.Height);
             if (resultPoint == null)
             {
+                Logger.Debug("Result point null");
                 break;
             }
 
@@ -2105,8 +2336,7 @@ internal static class GW2Flipper
             }
             catch (TimeoutException)
             {
-                Logger.Warn("Item border didn't appear");
-                LogImage();
+                Logger.Debug("Item border didn't appear");
                 await CloseItemWindow();
                 goto CancelItem;
             }
@@ -2118,8 +2348,7 @@ internal static class GW2Flipper
             }
             catch (TimeoutException)
             {
-                Logger.Warn("Vendor E didn't appear");
-                LogImage();
+                Logger.Debug("Vendor E didn't appear");
                 await CloseItemWindow();
                 goto CancelItem;
             }
@@ -2128,8 +2357,7 @@ internal static class GW2Flipper
             var vendorEPos = ImageSearch.FindImageInWindow(process!, Resources.VendorE, tradingPostPoint!.Value.X + 345, tradingPostPoint!.Value.Y + 176, Resources.VendorE.Width, Resources.VendorE.Height + 30, 0.9);
             if (vendorEPos == null)
             {
-                Logger.Warn("vendorEPos null");
-                LogImage();
+                Logger.Debug("vendorEPos null");
                 await CloseItemWindow();
                 goto CancelItem;
             }
@@ -2146,7 +2374,6 @@ internal static class GW2Flipper
             if (string.IsNullOrEmpty(capturedName))
             {
                 Logger.Debug("Empty string returned");
-                LogImage();
                 await CloseItemWindow();
                 continue;
             }
@@ -2155,12 +2382,6 @@ internal static class GW2Flipper
             var jw = new JaroWinkler();
             var nameDistance = 1.0 - jw.Distance(itemInfo.Name.RemoveDiacritics().ToLower(), capturedName.ToLower());
             Logger.Debug($"Item name: {itemInfo.Name} Captured name: {capturedName} Distance: {nameDistance}");
-            if (nameDistance < 1.0)
-            {
-                Logger.Debug("String distance below 1");
-                LogImage();
-            }
-
             if (nameDistance < Config.MinStringSimilarity)
             {
                 Logger.Debug("Item name too different");
@@ -2172,10 +2393,10 @@ internal static class GW2Flipper
             await CloseItemWindow();
 
             // Click cancel and confirm
-            Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, resultsPoint.X + 600, resultsPoint.Y + 28 + (y * 61));
-            await Task.Delay(200);
-            Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, resultsPoint.X + 600, resultsPoint.Y + 28 + (y * 61));
-            await Task.Delay(200);
+            Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, resultsPoint.X + 600, resultsPoint.Y + 28 + (y * 61), 100);
+            await Task.Delay(250);
+            Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, resultsPoint.X + 600, resultsPoint.Y + 28 + (y * 61), 100);
+            await Task.Delay(250);
 
             y--;
         }
@@ -2240,13 +2461,28 @@ internal static class GW2Flipper
 
         using var apiClient = new Gw2Client(ApiConnection);
 
-        var currentBuying = await apiClient.WebApi.V2.Commerce.Transactions.Current.Buys.PageAsync(0);
-        var currentBuyingList = currentBuying.ToList();
-        var numBuyingPages = currentBuying.HttpResponseInfo?.PageTotal;
-        for (var i = 1; i < numBuyingPages; i++)
+        List<Gw2Sharp.WebApi.V2.Models.CommerceTransactionCurrent>? currentBuyingList = null;
+        try
         {
-            currentBuying = await apiClient.WebApi.V2.Commerce.Transactions.Current.Buys.PageAsync(i);
-            currentBuyingList = currentBuyingList.Concat(currentBuying.ToList()).ToList();
+            var currentBuying = await apiClient.WebApi.V2.Commerce.Transactions.Current.Buys.PageAsync(0);
+            currentBuyingList = currentBuying.ToList();
+            var numBuyingPages = currentBuying.HttpResponseInfo?.PageTotal;
+            for (var i = 1; i < numBuyingPages; i++)
+            {
+                currentBuying = await apiClient.WebApi.V2.Commerce.Transactions.Current.Buys.PageAsync(i);
+                currentBuyingList = currentBuyingList.Concat(currentBuying.ToList()).ToList();
+            }
+        }
+        catch (RequestException e)
+        {
+            Logger.Error(e);
+            return;
+        }
+
+        if (currentBuyingList == null)
+        {
+            Logger.Debug("currentBuyingList null");
+            return;
         }
 
         foreach (var item in RemoveItemsList)
@@ -2396,12 +2632,12 @@ internal static class GW2Flipper
         if (ImageSearch.FindImageInWindow(process!, Resources.SuccessOK, tradingPostPoint!.Value.X + 392, tradingPostPoint!.Value.Y + 365, Resources.SuccessOK.Width, Resources.SuccessOK.Height) != null)
         {
             Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 450, tradingPostPoint!.Value.Y + 374);
-            Thread.Sleep(500);
+            Thread.Sleep(1000);
         }
         else if (ImageSearch.FindImageInWindow(process!, Resources.SuccessOK, tradingPostPoint!.Value.X + 392, tradingPostPoint!.Value.Y + 365 + 24, Resources.SuccessOK.Width, Resources.SuccessOK.Height) != null)
         {
             Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 450, tradingPostPoint!.Value.Y + 374 + 24);
-            Thread.Sleep(500);
+            Thread.Sleep(1000);
         }
     }
 
@@ -2410,7 +2646,7 @@ internal static class GW2Flipper
         if (ImageSearch.FindImageInWindow(process!, Resources.SuccessOK, tradingPostPoint!.Value.X + 392, tradingPostPoint!.Value.Y + 365 + offset, Resources.SuccessOK.Width, Resources.SuccessOK.Height) != null)
         {
             Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 450, tradingPostPoint!.Value.Y + 374 + offset);
-            Thread.Sleep(500);
+            Thread.Sleep(1000);
         }
     }
 
@@ -2425,9 +2661,9 @@ internal static class GW2Flipper
                 _ = Directory.CreateDirectory(directory);
             }
 
-            var fileName = Path.Combine(directory, $"{DateTime.Now:HH-mm-ss-ffff}.png");
+            var fileName = Path.Combine(directory, $"{DateTime.Now:HH-mm-ss-ffff}.bmp");
             Logger.Error($"File saved as {fileName}");
-            image.Save(fileName, ImageFormat.Png);
+            image.Save(fileName, ImageFormat.Bmp);
         }
     }
 
@@ -2447,7 +2683,7 @@ internal static class GW2Flipper
                 _ = Directory.CreateDirectory(directory);
             }
 
-            var fileName = Path.Combine(directory, $"{DateTime.Now:HH-mm-ss-ffff}.bmp");
+            var fileName = Path.Combine(directory, $"{DateTime.Now.ToString("s").Replace(":", string.Empty)}.bmp");
             Logger.Error($"File saved as {fileName}");
             image.Save(fileName, ImageFormat.Bmp);
         }
