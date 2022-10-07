@@ -121,6 +121,9 @@
   <data name="Available" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\Resources\Available.bmp;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
+  <data name="Buying" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\Buying.bmp;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
   <data name="BuyInstantly" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\Resources\BuyInstantly.bmp;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>

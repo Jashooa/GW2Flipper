@@ -22,6 +22,7 @@ internal static class OCR
         { "Cre\n", "Ore\n" },
         { "Axiquiot\n", "Axiquiotl\n" },
         { "Piguant", "Piquant" },
+        { "Grawil", "Grawl" },
     };
 
     public static string ReadName(Bitmap bitmap, Color color)
@@ -30,7 +31,7 @@ internal static class OCR
         _ = engine.SetVariable("tessedit_char_whitelist", "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890 + -—/ '\",()");
 
         var ms = new MemoryStream();
-        bitmap.BinarizeByColor(color, 0.52).Save(ms, ImageFormat.Bmp);
+        bitmap.BinarizeByColor(color, 0.55).Save(ms, ImageFormat.Bmp);
         var image = TesseractOCR.Pix.Image.LoadFromMemory(ms).Scale(3.125f, 3.125f);
 
         using var page = engine.Process(image, TesseractOCR.Enums.PageSegMode.SingleBlock);

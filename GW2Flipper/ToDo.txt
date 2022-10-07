@@ -76,6 +76,9 @@ Cancel/Confirm Button
 		Top		922,205	+600,+28
 		Mid		922,241
 		Bot		922,277
+Buying
+    Coords      672,238 +350,+25
+    Size        40,7
 
 Delivery Available
 	Coords		70,445

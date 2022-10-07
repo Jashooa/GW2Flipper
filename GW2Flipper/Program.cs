@@ -11,7 +11,7 @@ internal static class Program
         SetupLogger();
         Config.Load();
         await GW2Flipper.Run();
-        _ = Console.ReadKey();
+        // await GW2Flipper.RunCancelAll();
     }
 
     private static void SetupLogger()
