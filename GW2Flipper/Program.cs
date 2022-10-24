@@ -6,12 +6,23 @@ using NLog.Targets;
 
 internal static class Program
 {
+    private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
+
     private static async Task Main()
     {
         SetupLogger();
         Config.Load();
-        await GW2Flipper.Run();
-        // await GW2Flipper.RunCancelAll();
+
+        try
+        {
+            // await GW2Flipper.Run();
+            await GW2Flipper.RunCancelAll();
+        }
+        catch (Exception e)
+        {
+            Logger.Error(e);
+            return;
+        }
     }
 
     private static void SetupLogger()

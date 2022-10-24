@@ -27,7 +27,7 @@ internal class Config
 
     public bool SellForBestIfUnderRange { get; set; }
 
-    public bool IgnoreSellsLessThanBuys { get; set; }
+    // public bool IgnoreSellsLessThanBuys { get; set; }
 
     public bool RemoveUnprofitable { get; set; }
 

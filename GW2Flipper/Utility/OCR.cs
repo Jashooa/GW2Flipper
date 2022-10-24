@@ -23,6 +23,12 @@ internal static class OCR
         { "Axiquiot\n", "Axiquiotl\n" },
         { "Piguant", "Piquant" },
         { "Grawil", "Grawl" },
+        { "lade ", "Jade " },
+        { "QOrichalcum", "Orichalcum" },
+        { "Berserker's ron", "Berserker's Iron" },
+        { "Sarracentaceae", "Sarraceniaceae" },
+        { "Gibbering Skul\n", "Gibbering Skull\n" },
+        { "Tyra's", "Tyria's" },
     };
 
     public static string ReadName(Bitmap bitmap, Color color)

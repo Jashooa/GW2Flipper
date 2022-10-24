@@ -5,6 +5,7 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.Globalization;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 using global::GW2Flipper.Extensions;
 using global::GW2Flipper.Models;
@@ -67,6 +68,15 @@ internal static class GW2Flipper
 
     public static async Task Run()
     {
+        /*await UpdateBuyList2();
+        foreach (var item in BuyItemsList)
+        {
+            Logger.Info(item);
+        }
+
+        _ = Console.ReadKey();
+        return;*/
+
         process = Array.Find(Process.GetProcessesByName("Gw2-64"), p => p.SessionId == Process.GetCurrentProcess().SessionId);
         if (process == null)
         {
@@ -131,16 +141,6 @@ internal static class GW2Flipper
             {
                 try
                 {
-                    var howLongLastBuy = DateTime.Now - timeSinceLastBuy;
-                    if (howLongLastBuy < TimeSpan.FromMinutes(6))
-                    {
-                        _ = ResetUI();
-                        var howLongWait = TimeSpan.FromMinutes(6) - howLongLastBuy;
-                        Logger.Info($"Sleeping for {howLongWait.TotalMinutes} minutes");
-                        await Task.Delay(howLongWait);
-                    }
-
-                    timeSinceLastBuy = DateTime.Now;
                     await UpdateBuyList();
                 }
                 catch (Exception e)
@@ -168,6 +168,16 @@ internal static class GW2Flipper
 
             try
             {
+                var howLongLastBuy = DateTime.Now - timeSinceLastBuy;
+                if (howLongLastBuy < TimeSpan.FromMinutes(6))
+                {
+                    _ = ResetUI();
+                    var howLongWait = TimeSpan.FromMinutes(6) - howLongLastBuy;
+                    Logger.Info($"Sleeping for {howLongWait.TotalMinutes} minutes");
+                    await Task.Delay(howLongWait);
+                }
+
+                timeSinceLastBuy = DateTime.Now;
                 await BuyItems();
             }
             catch (Exception e)
@@ -326,12 +336,12 @@ internal static class GW2Flipper
                     var buyPrice = int.Parse(item.SelectSingleNode("td[4]").InnerText);
                     var profit = int.Parse(item.SelectSingleNode("td[5]").InnerText);
                     var sold = int.Parse(item.SelectSingleNode("td[9]").InnerText, NumberStyles.AllowThousands);
-                    var bought = int.Parse(item.SelectSingleNode("td[11]").InnerText, NumberStyles.AllowThousands);
+                    // var bought = int.Parse(item.SelectSingleNode("td[11]").InnerText, NumberStyles.AllowThousands);
 
-                    if (Config.IgnoreSellsLessThanBuys && (sold * Config.ErrorRangeInverse) < bought)
+                    /*if (Config.IgnoreSellsLessThanBuys && (sold * Config.ErrorRangeInverse) < bought)
                     {
                         continue;
-                    }
+                    }*/
 
                     if (Config.Blacklist.Contains(itemId))
                     {
@@ -339,7 +349,7 @@ internal static class GW2Flipper
                         continue;
                     }
 
-                    var newItem = new BuyItem(itemId, itemName, buyPrice, sellPrice, profit, sold, bought);
+                    var newItem = new BuyItem(itemId, itemName, buyPrice, sellPrice, profit, sold);
 
                     if (Config.RemoveUnprofitable)
                     {
@@ -361,6 +371,122 @@ internal static class GW2Flipper
                         {
                             BuyItemsList[findIndex] = newItem;
                         }
+                    }
+                }
+            }
+        }
+
+        if (Config.RemoveUnprofitable)
+        {
+            foreach (var item in BuyItemsList.ToList())
+            {
+                if (newItemsList.FindIndex(x => x.Id == item.Id) == -1)
+                {
+                    RemoveItemsList.Add(item);
+                }
+            }
+
+            BuyItemsList.Clear();
+            BuyItemsList.AddRange(newItemsList);
+        }
+
+        // BuyItemsList.Sort((x, y) => y.Profit.CompareTo(x.Profit));
+        BuyItemsList.Shuffle();
+
+        Logger.Info($"Items: {BuyItemsList.Count}");
+    }
+
+    private static async Task UpdateBuyList2()
+    {
+        if (DateTime.Now - timeSinceLastBuyListGenerate < TimeSpan.FromMinutes(Config.UpdateListTime))
+        {
+            return;
+        }
+
+        Logger.Info("Updating buy list");
+
+        timeSinceLastBuyListGenerate = DateTime.Now;
+
+        List<string> urls = new()
+        {
+            "http://gw2profits.com/spread.php?order=buy_combo2&price_choice=current&search_name=&min_coin=500&min_coin_day=0&min_percent=10&min_percent_day=0&velocity_min=200",
+            "http://gw2profits.com/spread.php?order=buy_combo2&price_choice=current&search_name=&min_coin=100&min_coin_day=0&min_percent=10&min_percent_day=0&velocity_min=1000",
+            "http://gw2profits.com/spread.php?order=buy_combo2&price_choice=current&search_name=&min_coin=10&min_coin_day=0&min_percent=10&min_percent_day=0&velocity_min=4000",
+        };
+
+        List<BuyItem> newItemsList = new();
+
+        foreach (var url in urls)
+        {
+            HtmlWeb web = new();
+
+            var htmlDoc = await web.LoadFromWebAsync(url);
+
+            var itemTable = htmlDoc.DocumentNode.SelectSingleNode("//table[contains(@class, 'lessfade')]");
+            if (itemTable == null)
+            {
+                break;
+            }
+
+            foreach (var item in itemTable.SelectNodes(".//tr[td]"))
+            {
+                var itemLink = item.SelectSingleNode("td[2]/a").Attributes["href"].Value;
+                var itemIdMatch = Regex.Match(itemLink, @"items.php\?iid=(\d+)").Groups[1].Value;
+                var itemId = int.Parse(itemIdMatch);
+                var itemName = HtmlEntity.DeEntitize(item.SelectSingleNode("td[2]/a").InnerText);
+
+                var pricesText = item.SelectSingleNode("td[3]").InnerHtml;
+                var pricesMatch = Regex.Match(pricesText, @"(?:(\d+)<img src=""images\/Gold_coin.png"">)?(?:(\d+)<img src=""images\/Silver_coin.png"">)?(\d+)<img src=""images\/Copper_coin.png""><br><br>(?:(\d+)<img src=""images\/Gold_coin.png"">)?(?:(\d+)<img src=""images\/Silver_coin.png"">)?(\d+)<img src=""images\/Copper_coin.png"">");
+                var buyGoldMatch = pricesMatch.Groups[1].Value;
+                buyGoldMatch = string.IsNullOrEmpty(buyGoldMatch) ? "0" : buyGoldMatch;
+                var buySilverMatch = pricesMatch.Groups[2].Value;
+                buySilverMatch = string.IsNullOrEmpty(buySilverMatch) ? "0" : buySilverMatch;
+                var buyCopperMatch = pricesMatch.Groups[3].Value;
+                buyCopperMatch = string.IsNullOrEmpty(buyCopperMatch) ? "0" : buyCopperMatch;
+                var buyPrice = ToCurrency(int.Parse(buyGoldMatch), int.Parse(buySilverMatch), int.Parse(buyCopperMatch));
+                var sellGoldMatch = pricesMatch.Groups[4].Value;
+                sellGoldMatch = string.IsNullOrEmpty(sellGoldMatch) ? "0" : sellGoldMatch;
+                var sellSilverMatch = pricesMatch.Groups[5].Value;
+                sellSilverMatch = string.IsNullOrEmpty(sellSilverMatch) ? "0" : sellSilverMatch;
+                var sellCopperMatch = pricesMatch.Groups[6].Value;
+                sellCopperMatch = string.IsNullOrEmpty(sellCopperMatch) ? "0" : sellCopperMatch;
+                var sellPrice = ToCurrency(int.Parse(sellGoldMatch), int.Parse(sellSilverMatch), int.Parse(sellCopperMatch));
+
+                var profitText = item.SelectSingleNode("td[4]").InnerText;
+                var profitMatch = Regex.Match(profitText, @"(\d+) \(\d+%\)").Groups[1].Value;
+                var profit = int.Parse(profitMatch);
+
+                var soldText = item.SelectSingleNode("td[2]").InnerHtml;
+                var soldMatch = Regex.Match(soldText, @"<br>([\d,.]+)[-+] \/ day").Groups[1].Value;
+                var sold = (int)decimal.Parse(soldMatch);
+
+                if (Config.Blacklist.Contains(itemId))
+                {
+                    Logger.Debug($"Removing blacklisted item: [{itemId}] {itemName}");
+                    continue;
+                }
+
+                var newItem = new BuyItem(itemId, itemName, buyPrice, sellPrice, profit, sold);
+
+                if (Config.RemoveUnprofitable)
+                {
+                    var findIndex = newItemsList.FindIndex(x => x.Id == itemId);
+                    if (findIndex == -1)
+                    {
+                        newItemsList.Add(newItem);
+                    }
+                }
+                else
+                {
+                    // Add or update here
+                    var findIndex = BuyItemsList.FindIndex(x => x.Id == itemId);
+                    if (findIndex == -1)
+                    {
+                        BuyItemsList.Add(newItem);
+                    }
+                    else
+                    {
+                        BuyItemsList[findIndex] = newItem;
                     }
                 }
             }
@@ -434,7 +560,7 @@ internal static class GW2Flipper
     private static async Task OpenTradingPost()
     {
         var lionPoint = ImageSearch.FindImageInWindow(process!, Resources.TradingPostLion, tradingPostPoint!.Value.X, tradingPostPoint!.Value.Y, Resources.TradingPostLion.Width, Resources.TradingPostLion.Height);
-        var homePoint = ImageSearch.FindImageInWindow(process!, Resources.Home, tradingPostPoint!.Value.X + 377, tradingPostPoint!.Value.Y + 58, Resources.Home.Width, Resources.Home.Height, 0.9);
+        var homePoint = ImageSearch.FindImageInWindow(process!, Resources.Home, tradingPostPoint!.Value.X + 377, tradingPostPoint!.Value.Y + 58, Resources.Home.Width, Resources.Home.Height, 0.6);
 
         if (lionPoint == null || homePoint == null)
         {
@@ -1146,9 +1272,17 @@ internal static class GW2Flipper
 
             Logger.Info("--------------------");
             Logger.Info($"Selling [{item.Id}] {item.Name}");
-            Logger.Info($"Buy: {item.BuyPrice} Sell: {item.SellPrice} Profit: {item.Profit} Bought: {item.Bought} Sold: {item.Sold}");
+            Logger.Info($"Buy: {item.BuyPrice} Sell: {item.SellPrice} Profit: {item.Profit} Sold: {item.Sold}");
 
-            await SellItem(item, currentSellingList);
+            try
+            {
+                await SellItem(item, currentSellingList);
+            }
+            catch (Exception e)
+            {
+                Logger.Error(e);
+                return;
+            }
         }
     }
 
@@ -1211,7 +1345,7 @@ internal static class GW2Flipper
 
             Logger.Info("--------------------");
             Logger.Info($"Selling [{item.Id}] {item.Name}");
-            Logger.Info($"Buy: {item.BuyPrice} Sell: {item.SellPrice} Profit: {item.Profit} Bought: {item.Bought} Sold: {item.Sold}");
+            Logger.Info($"Buy: {item.BuyPrice} Sell: {item.SellPrice} Profit: {item.Profit} Sold: {item.Sold}");
 
             await SellItem(item, currentSellingList);
         }
@@ -1681,7 +1815,7 @@ internal static class GW2Flipper
 
             Logger.Info("--------------------");
             Logger.Info($"Buying Item {currentLoopIndex + 1}/{BuyItemsList.Count} [{item.Id}] {item.Name}");
-            Logger.Info($"Buy: {item.BuyPrice} Sell: {item.SellPrice} Profit: {item.Profit} Bought: {item.Bought} Sold: {item.Sold}");
+            Logger.Info($"Buy: {item.BuyPrice} Sell: {item.SellPrice} Profit: {item.Profit} Sold: {item.Sold}");
 
             // Check if currently selling item
             if (!Config.BuyIfSelling && currentSellingList!.Any(x => x.ItemId == item.Id))
@@ -1722,10 +1856,27 @@ internal static class GW2Flipper
                 }
 
                 Logger.Info("Cancelling undercut");
-                await CancelItem(item);
+
+                try
+                {
+                    await CancelItem(item);
+                }
+                catch (Exception e)
+                {
+                    Logger.Error(e);
+                    return;
+                }
             }
 
-            await BuyItem(item);
+            try
+            {
+                await BuyItem(item);
+            }
+            catch (Exception e)
+            {
+                Logger.Error(e);
+                return;
+            }
         }
     }
 
@@ -2258,7 +2409,7 @@ internal static class GW2Flipper
 
             Logger.Info("--------------------");
             Logger.Info($"Selling [{item.Id}] {item.Name}");
-            Logger.Info($"Buy: {item.BuyPrice} Sell: {item.SellPrice} Profit: {item.Profit} Bought: {item.Bought} Sold: {item.Sold}");
+            Logger.Info($"Buy: {item.BuyPrice} Sell: {item.SellPrice} Profit: {item.Profit} Sold: {item.Sold}");
 
             await SellItem(item);
         }
