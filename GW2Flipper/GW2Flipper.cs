@@ -68,15 +68,6 @@ internal static class GW2Flipper
 
     public static async Task Run()
     {
-        /*await UpdateBuyList2();
-        foreach (var item in BuyItemsList)
-        {
-            Logger.Info(item);
-        }
-
-        _ = Console.ReadKey();
-        return;*/
-
         process = Array.Find(Process.GetProcessesByName("Gw2-64"), p => p.SessionId == Process.GetCurrentProcess().SessionId);
         if (process == null)
         {
@@ -251,6 +242,98 @@ internal static class GW2Flipper
         }
     }
 
+    public static async Task RunSellShit()
+    {
+        process = Array.Find(Process.GetProcessesByName("Gw2-64"), p => p.SessionId == Process.GetCurrentProcess().SessionId);
+        if (process == null)
+        {
+            Logger.Error("Couldn't find process");
+            return;
+        }
+
+        Logger.Info($"Found process: [{process!.Id}] {process!.MainWindowTitle}");
+
+        process.PriorityClass = ProcessPriorityClass.High;
+
+        foreach (var coherentProcess in Process.GetProcessesByName("CoherentUI_Host").Where(p => p.SessionId == Process.GetCurrentProcess().SessionId))
+        {
+            coherentProcess.PriorityClass = ProcessPriorityClass.High;
+        }
+
+        _ = User32.MoveWindow(process.MainWindowHandle, 0, 5, 1080, 850, true);
+        _ = User32.MoveWindow(Process.GetCurrentProcess().MainWindowHandle, 0, 855, 1080, 360, true);
+
+        Input.EnsureForegroundWindow(process);
+
+        tradingPostPoint = await GetTradingPostPoint();
+        if (tradingPostPoint == null)
+        {
+            Logger.Error("Couldn't open trading post");
+            return;
+        }
+
+        Logger.Info($"Found trading post at: {tradingPostPoint}");
+
+        using var apiClient = new Gw2Client(ApiConnection);
+
+        while (true)
+        {
+            if (Array.Find(Process.GetProcessesByName("Gw2-64"), p => p.SessionId == Process.GetCurrentProcess().SessionId) == null)
+            {
+                Logger.Error("Process gone");
+                return;
+            }
+
+            tradingPostPoint = await GetTradingPostPoint();
+            if (tradingPostPoint == null)
+            {
+                Logger.Error("Couldn't open trading post");
+                return;
+            }
+
+            try
+            {
+                if (ResetUI())
+                {
+                    AntiAfk();
+                    CheckNewMap();
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Error(e);
+            }
+
+            try
+            {
+                await UpdateBuyList();
+            }
+            catch (Exception e)
+            {
+                Logger.Error(e);
+            }
+
+            try
+            {
+                var howLongLastSell = DateTime.Now - timeSinceLastSell;
+                if (howLongLastSell < TimeSpan.FromMinutes(6))
+                {
+                    _ = ResetUI();
+                    var howLongWait = TimeSpan.FromMinutes(6) - howLongLastSell;
+                    Logger.Info($"Sleeping for {howLongWait.TotalMinutes} minutes");
+                    await Task.Delay(howLongWait);
+                }
+
+                timeSinceLastSell = DateTime.Now;
+                await SellItems();
+            }
+            catch (Exception e)
+            {
+                Logger.Error(e);
+            }
+        }
+    }
+
     public static async Task RunSellAll()
     {
         process = Array.Find(Process.GetProcessesByName("Gw2-64"), p => p.SessionId == Process.GetCurrentProcess().SessionId);
@@ -336,12 +419,12 @@ internal static class GW2Flipper
                     var buyPrice = int.Parse(item.SelectSingleNode("td[4]").InnerText);
                     var profit = int.Parse(item.SelectSingleNode("td[5]").InnerText);
                     var sold = int.Parse(item.SelectSingleNode("td[9]").InnerText, NumberStyles.AllowThousands);
-                    // var bought = int.Parse(item.SelectSingleNode("td[11]").InnerText, NumberStyles.AllowThousands);
+                    var bought = int.Parse(item.SelectSingleNode("td[11]").InnerText, NumberStyles.AllowThousands);
 
-                    /*if (Config.IgnoreSellsLessThanBuys && (sold * Config.ErrorRangeInverse) < bought)
+                    if (Config.IgnoreSellsLessThanBuys && (sold * Config.SellsLessThanBuysRange) < bought)
                     {
                         continue;
-                    }*/
+                    }
 
                     if (Config.Blacklist.Contains(itemId))
                     {
@@ -349,7 +432,7 @@ internal static class GW2Flipper
                         continue;
                     }
 
-                    var newItem = new BuyItem(itemId, itemName, buyPrice, sellPrice, profit, sold);
+                    var newItem = new BuyItem(itemId, itemName, buyPrice, sellPrice, profit, sold, bought);
 
                     if (Config.RemoveUnprofitable)
                     {
@@ -466,7 +549,7 @@ internal static class GW2Flipper
                     continue;
                 }
 
-                var newItem = new BuyItem(itemId, itemName, buyPrice, sellPrice, profit, sold);
+                var newItem = new BuyItem(itemId, itemName, buyPrice, sellPrice, profit, sold, 0);
 
                 if (Config.RemoveUnprofitable)
                 {
@@ -526,6 +609,8 @@ internal static class GW2Flipper
             }
             catch (TimeoutException)
             {
+                PlayCharacterCheck();
+
                 if (ResetUI())
                 {
                     Input.KeyPress(process!, VirtualKeyCode.VK_F);
@@ -699,6 +784,7 @@ internal static class GW2Flipper
         catch (TimeoutException)
         {
             LogImage();
+            PlayCharacterCheck();
             throw new TimeoutException();
         }
 
@@ -1068,8 +1154,7 @@ internal static class GW2Flipper
             }
 
             // Check captured name
-            Logger.Debug($"Item name: {itemInfo.Name} Captured name: {capturedName}");
-            if (!string.Equals(itemInfo.Name.RemoveDiacritics(), capturedName, StringComparison.OrdinalIgnoreCase))
+            if (!OCR.NameCompare(itemInfo.Name, capturedName))
             {
                 Logger.Debug("Item name different");
                 await CloseItemWindow();
@@ -1163,9 +1248,7 @@ internal static class GW2Flipper
             }
             else if (ImageSearch.FindImageInWindow(process!, Resources.SellInstantly, tradingPostPoint!.Value.X + 382, tradingPostPoint!.Value.Y + 364 + offset, Resources.SellInstantly.Width, Resources.SellInstantly.Height, 0.5) != null)
             {
-                Logger.Warn("Test code!!!!!!!!!!!!!!!");
                 Logger.Warn("Wrong sell button");
-                Logger.Warn("Test code!!!!!!!!!!!!!!!");
 
                 // Check entered price
                 /*int? enteredAmount = null;
@@ -1197,7 +1280,6 @@ internal static class GW2Flipper
                 await Task.Delay(1000);
                 continue;*/
 
-                LogImage();
                 await CloseItemWindow();
                 goto SellItem;
             }
@@ -1272,7 +1354,7 @@ internal static class GW2Flipper
 
             Logger.Info("--------------------");
             Logger.Info($"Selling [{item.Id}] {item.Name}");
-            Logger.Info($"Buy: {item.BuyPrice} Sell: {item.SellPrice} Profit: {item.Profit} Sold: {item.Sold}");
+            Logger.Info($"Buy: {item.BuyPrice} Sell: {item.SellPrice} Profit: {item.Profit} Sold: {item.Sold} Bought: {item.Bought}");
 
             try
             {
@@ -1345,7 +1427,7 @@ internal static class GW2Flipper
 
             Logger.Info("--------------------");
             Logger.Info($"Selling [{item.Id}] {item.Name}");
-            Logger.Info($"Buy: {item.BuyPrice} Sell: {item.SellPrice} Profit: {item.Profit} Sold: {item.Sold}");
+            Logger.Info($"Buy: {item.BuyPrice} Sell: {item.SellPrice} Profit: {item.Profit} Sold: {item.Sold} Bought: {item.Bought}");
 
             await SellItem(item, currentSellingList);
         }
@@ -1599,8 +1681,7 @@ internal static class GW2Flipper
             }
 
             // Check captured name
-            Logger.Debug($"Item name: {itemInfo.Name} Captured name: {capturedName}");
-            if (!string.Equals(itemInfo.Name.RemoveDiacritics(), capturedName, StringComparison.OrdinalIgnoreCase))
+            if (!OCR.NameCompare(itemInfo.Name, capturedName))
             {
                 Logger.Debug("Item name different");
                 await CloseItemWindow();
@@ -1652,9 +1733,7 @@ internal static class GW2Flipper
             }
             else if (ImageSearch.FindImageInWindow(process!, Resources.BuyInstantly, tradingPostPoint!.Value.X + 382, tradingPostPoint!.Value.Y + 364 + offset, Resources.BuyInstantly.Width, Resources.BuyInstantly.Height, 0.5) != null)
             {
-                Logger.Warn("Test code!!!!!!!!!!!!!!!");
                 Logger.Warn("Wrong buy button");
-                Logger.Warn("Test code!!!!!!!!!!!!!!!");
 
                 // Click highest current seller
                 /*Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint.Value.X + 542, tradingPostPoint.Value.Y + 499 + offset);
@@ -1729,7 +1808,6 @@ internal static class GW2Flipper
                     continue;
                 }*/
 
-                LogImage();
                 await CloseItemWindow();
                 goto BuyItem;
             }
@@ -1815,7 +1893,7 @@ internal static class GW2Flipper
 
             Logger.Info("--------------------");
             Logger.Info($"Buying Item {currentLoopIndex + 1}/{BuyItemsList.Count} [{item.Id}] {item.Name}");
-            Logger.Info($"Buy: {item.BuyPrice} Sell: {item.SellPrice} Profit: {item.Profit} Sold: {item.Sold}");
+            Logger.Info($"Buy: {item.BuyPrice} Sell: {item.SellPrice} Profit: {item.Profit} Sold: {item.Sold} Bought: {item.Bought}");
 
             // Check if currently selling item
             if (!Config.BuyIfSelling && currentSellingList!.Any(x => x.ItemId == item.Id))
@@ -2135,8 +2213,7 @@ internal static class GW2Flipper
             }
 
             // Check captured name
-            Logger.Debug($"Item name: {itemInfo.Name} Captured name: {capturedName}");
-            if (!string.Equals(itemInfo.Name.RemoveDiacritics(), capturedName, StringComparison.OrdinalIgnoreCase))
+            if (!OCR.NameCompare(itemInfo.Name, capturedName))
             {
                 Logger.Debug("Item name different");
                 await CloseItemWindow();
@@ -2307,9 +2384,9 @@ internal static class GW2Flipper
 
             // Click cancel and confirm
             Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, resultsPoint.X + 600, resultsPoint.Y + 28, 100);
-            await Task.Delay(250);
+            await Task.Delay(150);
             Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, resultsPoint.X + 600, resultsPoint.Y + 28, 100);
-            await Task.Delay(250);
+            await Task.Delay(150);
         }
     }
 
@@ -2409,7 +2486,7 @@ internal static class GW2Flipper
 
             Logger.Info("--------------------");
             Logger.Info($"Selling [{item.Id}] {item.Name}");
-            Logger.Info($"Buy: {item.BuyPrice} Sell: {item.SellPrice} Profit: {item.Profit} Sold: {item.Sold}");
+            Logger.Info($"Buy: {item.BuyPrice} Sell: {item.SellPrice} Profit: {item.Profit} Sold: {item.Sold} Bought: {item.Bought}");
 
             await SellItem(item);
         }
@@ -2438,15 +2515,31 @@ internal static class GW2Flipper
 
     private static void AntiAfk()
     {
-        if (DateTime.Now - timeSinceLastAfkCheck < TimeSpan.FromMinutes(20))
+        if (DateTime.Now - timeSinceLastAfkCheck < TimeSpan.FromMinutes(10))
         {
             return;
         }
 
         Logger.Info("Moving for anti-afk");
         Input.KeyPress(process!, VirtualKeyCode.LEFT);
+        Thread.Sleep(500);
         Input.KeyPress(process!, VirtualKeyCode.RIGHT);
         timeSinceLastAfkCheck = DateTime.Now;
+    }
+
+    private static void PlayCharacterCheck()
+    {
+        Input.MouseMove(process!, 540, 0);
+        Input.MouseClick(process!, Input.MouseButton.LeftButton);
+        Thread.Sleep(250);
+
+        if (ImageSearch.FindImageInWindow(process!, Resources.Play, 861, 782, Resources.Play.Width, Resources.Play.Height, 0.6) != null)
+        {
+            Logger.Info("Logging in to character");
+
+            Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, 872, 788);
+            Thread.Sleep(30000);
+        }
     }
 
     /*private static void CheckPosition()

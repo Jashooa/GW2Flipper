@@ -1,5 +1,4 @@
 
-
 Coords
 ----------
 Mushroom
@@ -10,6 +9,11 @@ Mushroom
 		Size	52,19
 		Mid		56,566	-92,+51
 
+Character Select
+    Play
+        Coords  861,782
+        Size    25,10
+        Mid     872, 788
 
 Window
 	Size		992,732

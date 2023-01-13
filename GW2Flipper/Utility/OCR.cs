@@ -29,6 +29,9 @@ internal static class OCR
         { "Sarracentaceae", "Sarraceniaceae" },
         { "Gibbering Skul\n", "Gibbering Skull\n" },
         { "Tyra's", "Tyria's" },
+        { "Sacbosa\n", "Saobosa\n" },
+        { "leweled ", "Jeweled " },
+        { "Stiver ", "Silver " },
     };
 
     public static string ReadName(Bitmap bitmap, Color color)
@@ -67,6 +70,16 @@ internal static class OCR
         }
 
         return text;
+    }
+
+    public static bool NameCompare(string name, string compare)
+    {
+        name = name.RemoveDiacritics().Replace(" ", string.Empty);
+        compare = compare.Replace(" ", string.Empty);
+
+        Logger.Debug($"Item name: {name} Captured name: {compare}");
+
+        return string.Equals(name, compare, StringComparison.OrdinalIgnoreCase);
     }
 
     private static string StringRepair(string text)
