@@ -61,6 +61,11 @@ Load More Button
     Size        81,18
     Mid         650,688
 
+Error Ok Button
+    Coords      661,465
+    Size        20,14
+    Mid         671,472
+
 Qty
 	Size		20,10
 	Coords		

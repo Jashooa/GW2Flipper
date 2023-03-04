@@ -7,15 +7,36 @@ internal static class Program
 {
     private static async Task Main()
     {
-        var httpClient = new HttpClient
-        {
-            Timeout = TimeSpan.FromMinutes(10)
-        };
+        var httpClient = new HttpClient();
 
         var items = new List<ApiItem>();
         if (!File.Exists("items.json"))
         {
-            var allIdsJson = await httpClient.GetStringAsync("https://api.guildwars2.com/v2/items");
+            var allIdsJson = string.Empty;
+
+            var restartAllIdsAttempts = 0;
+            RestartAllIdsGet:
+            if (restartAllIdsAttempts >= 5)
+            {
+                return;
+            }
+
+            if (restartAllIdsAttempts > 0)
+            {
+                Console.WriteLine($"Restart attempt {restartAllIdsAttempts}");
+            }
+
+            try
+            {
+                allIdsJson = await httpClient.GetStringAsync("https://api.guildwars2.com/v2/items");
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                restartAllIdsAttempts++;
+                goto RestartAllIdsGet;
+            }
+
             var allIds = JsonSerializer.Deserialize<List<int>>(allIdsJson);
             if (allIds == null)
             {
@@ -41,7 +62,30 @@ internal static class Program
                 Console.WriteLine($"Retrieving {currentIds.Min()} to {currentIds.Max()}");
                 var currentIdsString = string.Join(',', currentIds);
 
-                var newJson = await httpClient.GetStringAsync($"https://api.guildwars2.com/v2/items?ids={currentIdsString}");
+                var newJson = string.Empty;
+
+                var restartIdAttempts = 0;
+                RestartIdGet:
+                if (restartIdAttempts >= 5)
+                {
+                    return;
+                }
+
+                if (restartIdAttempts > 0)
+                {
+                    Console.WriteLine($"Restart attempt {restartIdAttempts}");
+                }
+
+                try
+                {
+                    newJson = await httpClient.GetStringAsync($"https://api.guildwars2.com/v2/items?ids={currentIdsString}");
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e);
+                    restartIdAttempts++;
+                    goto RestartIdGet;
+                }
 
                 if (string.IsNullOrEmpty(itemJson))
                 {
@@ -76,7 +120,29 @@ internal static class Program
         var tradeJson = string.Empty;
         if (!File.Exists("trade_ids.json"))
         {
-            tradeJson = await httpClient.GetStringAsync("https://api.guildwars2.com/v2/commerce/prices");
+            var restartTradeAttempts = 0;
+            RestartTradeGet:
+            if (restartTradeAttempts >= 5)
+            {
+                return;
+            }
+
+            if (restartTradeAttempts > 0)
+            {
+                Console.WriteLine($"Restart attempt {restartTradeAttempts}");
+            }
+
+            try
+            {
+                tradeJson = await httpClient.GetStringAsync("https://api.guildwars2.com/v2/commerce/prices");
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                restartTradeAttempts++;
+                goto RestartTradeGet;
+            }
+
             await File.WriteAllTextAsync("trade_ids.json", tradeJson);
         }
         else

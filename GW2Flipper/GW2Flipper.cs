@@ -198,7 +198,7 @@ internal static class GW2Flipper
         }
     }
 
-    public static async Task RunCancelAll()
+    public static async Task RunCancelAndSell()
     {
         process = Array.Find(Process.GetProcessesByName("Gw2-64"), p => p.SessionId == Process.GetCurrentProcess().SessionId);
         if (process == null)
@@ -234,103 +234,29 @@ internal static class GW2Flipper
 
         try
         {
+            await UpdateBuyList();
+        }
+        catch (Exception e)
+        {
+            Logger.Error(e);
+        }
+
+        try
+        {
             await CancelAllBuying();
         }
         catch (Exception e)
         {
             Logger.Error(e);
         }
-    }
 
-    public static async Task RunSellShit()
-    {
-        process = Array.Find(Process.GetProcessesByName("Gw2-64"), p => p.SessionId == Process.GetCurrentProcess().SessionId);
-        if (process == null)
+        try
         {
-            Logger.Error("Couldn't find process");
-            return;
+            await SellItems();
         }
-
-        Logger.Info($"Found process: [{process!.Id}] {process!.MainWindowTitle}");
-
-        process.PriorityClass = ProcessPriorityClass.High;
-
-        foreach (var coherentProcess in Process.GetProcessesByName("CoherentUI_Host").Where(p => p.SessionId == Process.GetCurrentProcess().SessionId))
+        catch (Exception e)
         {
-            coherentProcess.PriorityClass = ProcessPriorityClass.High;
-        }
-
-        _ = User32.MoveWindow(process.MainWindowHandle, 0, 5, 1080, 850, true);
-        _ = User32.MoveWindow(Process.GetCurrentProcess().MainWindowHandle, 0, 855, 1080, 360, true);
-
-        Input.EnsureForegroundWindow(process);
-
-        tradingPostPoint = await GetTradingPostPoint();
-        if (tradingPostPoint == null)
-        {
-            Logger.Error("Couldn't open trading post");
-            return;
-        }
-
-        Logger.Info($"Found trading post at: {tradingPostPoint}");
-
-        using var apiClient = new Gw2Client(ApiConnection);
-
-        while (true)
-        {
-            if (Array.Find(Process.GetProcessesByName("Gw2-64"), p => p.SessionId == Process.GetCurrentProcess().SessionId) == null)
-            {
-                Logger.Error("Process gone");
-                return;
-            }
-
-            tradingPostPoint = await GetTradingPostPoint();
-            if (tradingPostPoint == null)
-            {
-                Logger.Error("Couldn't open trading post");
-                return;
-            }
-
-            try
-            {
-                if (ResetUI())
-                {
-                    AntiAfk();
-                    CheckNewMap();
-                }
-            }
-            catch (Exception e)
-            {
-                Logger.Error(e);
-            }
-
-            try
-            {
-                await UpdateBuyList();
-            }
-            catch (Exception e)
-            {
-                Logger.Error(e);
-            }
-
-            try
-            {
-                var howLongLastSell = DateTime.Now - timeSinceLastSell;
-                if (howLongLastSell < TimeSpan.FromMinutes(6))
-                {
-                    _ = ResetUI();
-                    var howLongWait = TimeSpan.FromMinutes(6) - howLongLastSell;
-                    Logger.Info($"Sleeping for {howLongWait.TotalMinutes} minutes");
-                    await Task.Delay(howLongWait);
-                }
-
-                timeSinceLastSell = DateTime.Now;
-                await SellItems();
-            }
-            catch (Exception e)
-            {
-                Logger.Error(e);
-            }
+            Logger.Error(e);
         }
     }
 
@@ -693,6 +619,13 @@ internal static class GW2Flipper
 
         for (var i = 0; i < 10; i++)
         {
+            if (ImageSearch.FindImageInWindow(process!, Resources.ErrorOK, 661, 465, Resources.ErrorOK.Width, Resources.ErrorOK.Height, 0.9) != null)
+            {
+                Logger.Info("Found error message box");
+                Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, 671, 472);
+                Thread.Sleep(500);
+            }
+
             Input.KeyPress(process!, VirtualKeyCode.ESCAPE);
             Thread.Sleep(500);
 
@@ -1146,15 +1079,9 @@ internal static class GW2Flipper
             // Get OCR of item name and check if it matches API name
             var nameImage = ImageSearch.CaptureWindow(process!, tradingPostPoint!.Value.X + 334, tradingPostPoint.Value.Y + 136, 428, nameSize);
             var capturedName = OCR.ReadName(nameImage!, RarityColors[itemInfo.Rarity.ToString()!]);
-            if (string.IsNullOrEmpty(capturedName))
-            {
-                Logger.Debug("Empty string returned");
-                await CloseItemWindow();
-                continue;
-            }
 
             // Check captured name
-            if (!OCR.NameCompare(itemInfo.Name, capturedName))
+            if (string.IsNullOrEmpty(capturedName) || !OCR.NameCompare(itemInfo.Name, capturedName))
             {
                 Logger.Debug("Item name different");
                 await CloseItemWindow();
@@ -1302,6 +1229,15 @@ internal static class GW2Flipper
 
         using var apiClient = new Gw2Client(ApiConnection);
 
+        var restartAttempts = 0;
+        RestartSellItems:
+        if (restartAttempts >= 5)
+        {
+            return;
+        }
+
+        restartAttempts++;
+
         Gw2Sharp.WebApi.V2.Models.CharactersInventory? backpack = null;
         try
         {
@@ -1310,7 +1246,8 @@ internal static class GW2Flipper
         catch (Exception e)
         {
             Logger.Error(e);
-            return;
+
+            goto RestartSellItems;
         }
 
         if (backpack == null)
@@ -1330,13 +1267,16 @@ internal static class GW2Flipper
             for (var i = 1; i < numSellingPages; i++)
             {
                 currentSelling = await apiClient.WebApi.V2.Commerce.Transactions.Current.Sells.PageAsync(i);
+                numSellingPages = currentSelling.HttpResponseInfo?.PageTotal;
                 currentSellingList = currentSellingList.Concat(currentSelling.ToList()).ToList();
             }
         }
         catch (Exception e)
         {
             Logger.Error(e);
-            return;
+            // return;
+
+            goto RestartSellItems;
         }
 
         if (currentSellingList == null)
@@ -1375,6 +1315,15 @@ internal static class GW2Flipper
 
         using var apiClient = new Gw2Client(ApiConnection);
 
+        var restartAttempts = 0;
+        RestartSellAllItems:
+        if (restartAttempts >= 5)
+        {
+            return;
+        }
+
+        restartAttempts++;
+
         Gw2Sharp.WebApi.V2.Models.CharactersInventory? backpack = null;
         try
         {
@@ -1383,7 +1332,8 @@ internal static class GW2Flipper
         catch (Exception e)
         {
             Logger.Error(e);
-            return;
+
+            goto RestartSellAllItems;
         }
 
         if (backpack == null)
@@ -1403,13 +1353,15 @@ internal static class GW2Flipper
             for (var i = 1; i < numSellingPages; i++)
             {
                 currentSelling = await apiClient.WebApi.V2.Commerce.Transactions.Current.Sells.PageAsync(i);
+                numSellingPages = currentSelling.HttpResponseInfo?.PageTotal;
                 currentSellingList = currentSellingList.Concat(currentSelling.ToList()).ToList();
             }
         }
         catch (Exception e)
         {
             Logger.Error(e);
-            return;
+
+            goto RestartSellAllItems;
         }
 
         if (currentSellingList == null)
@@ -1607,6 +1559,8 @@ internal static class GW2Flipper
 
         var resultsPoint = Point.Add(qtyPoint.Value, new Size(-2, 22));
 
+        var secondTry = false;
+
         for (var y = 0; y < 7; y++)
         {
             var attempts = 0;
@@ -1673,18 +1627,26 @@ internal static class GW2Flipper
             // Get OCR of item name and check if it matches API name
             var nameImage = ImageSearch.CaptureWindow(process!, tradingPostPoint!.Value.X + 334, tradingPostPoint.Value.Y + 136, 428, nameSize);
             var capturedName = OCR.ReadName(nameImage!, RarityColors[itemInfo.Rarity.ToString()!]);
-            if (string.IsNullOrEmpty(capturedName))
-            {
-                Logger.Debug("Empty string returned");
-                await CloseItemWindow();
-                continue;
-            }
 
             // Check captured name
-            if (!OCR.NameCompare(itemInfo.Name, capturedName))
+            if (string.IsNullOrEmpty(capturedName) || !OCR.NameCompare(itemInfo.Name, capturedName))
             {
                 Logger.Debug("Item name different");
                 await CloseItemWindow();
+
+                if (y == 6)
+                {
+                    secondTry = true;
+                    y = -1;
+
+                    Logger.Debug("Trying first item a second time");
+                }
+
+                if (secondTry && y == 0)
+                {
+                    return;
+                }
+
                 continue;
             }
 
@@ -1830,6 +1792,15 @@ internal static class GW2Flipper
 
         using var apiClient = new Gw2Client(ApiConnection);
 
+        var restartAttempts = 0;
+        RestartBuyItems:
+        if (restartAttempts >= 5)
+        {
+            return;
+        }
+
+        restartAttempts++;
+
         List<Gw2Sharp.WebApi.V2.Models.CommerceTransactionCurrent>? currentSellingList = null;
         if (!Config.BuyIfSelling)
         {
@@ -1841,13 +1812,15 @@ internal static class GW2Flipper
                 for (var i = 1; i < numSellingPages; i++)
                 {
                     currentSelling = await apiClient.WebApi.V2.Commerce.Transactions.Current.Sells.PageAsync(i);
+                    numSellingPages = currentSelling.HttpResponseInfo?.PageTotal;
                     currentSellingList = currentSellingList.Concat(currentSelling.ToList()).ToList();
                 }
             }
             catch (Exception e)
             {
                 Logger.Error(e);
-                return;
+
+                goto RestartBuyItems;
             }
 
             if (currentSellingList == null)
@@ -1866,13 +1839,15 @@ internal static class GW2Flipper
             for (var i = 1; i < numBuyingPages; i++)
             {
                 currentBuying = await apiClient.WebApi.V2.Commerce.Transactions.Current.Buys.PageAsync(i);
+                numBuyingPages = currentBuying.HttpResponseInfo?.PageTotal;
                 currentBuyingList = currentBuyingList.Concat(currentBuying.ToList()).ToList();
             }
         }
         catch (Exception e)
         {
             Logger.Error(e);
-            return;
+
+            goto RestartBuyItems;
         }
 
         if (currentBuyingList == null)
@@ -2140,6 +2115,8 @@ internal static class GW2Flipper
 
             attempts++;
 
+            await Task.Delay(500);
+
             // Find the item border of the result
             var resultPoint = ImageSearch.FindImageInWindow(process!, Resources.ResultCorner, resultsPoint.X, resultsPoint.Y + (y * 61), Resources.ResultCorner.Width, Resources.ResultCorner.Height);
             if (resultPoint == null)
@@ -2205,15 +2182,9 @@ internal static class GW2Flipper
             // Get OCR of item name and check if it matches API name
             var nameImage = ImageSearch.CaptureWindow(process!, tradingPostPoint!.Value.X + 334, tradingPostPoint.Value.Y + 136, 428, nameSize);
             var capturedName = OCR.ReadName(nameImage!, RarityColors[itemInfo.Rarity.ToString()!]);
-            if (string.IsNullOrEmpty(capturedName))
-            {
-                Logger.Debug("Empty string returned");
-                await CloseItemWindow();
-                continue;
-            }
 
             // Check captured name
-            if (!OCR.NameCompare(itemInfo.Name, capturedName))
+            if (string.IsNullOrEmpty(capturedName) || !OCR.NameCompare(itemInfo.Name, capturedName))
             {
                 Logger.Debug("Item name different");
                 await CloseItemWindow();
@@ -2449,6 +2420,15 @@ internal static class GW2Flipper
 
         using var apiClient = new Gw2Client(ApiConnection);
 
+        var restartAttempts = 0;
+        RestartCancelUnprofitable:
+        if (restartAttempts >= 5)
+        {
+            return;
+        }
+
+        restartAttempts++;
+
         List<Gw2Sharp.WebApi.V2.Models.CommerceTransactionCurrent>? currentBuyingList = null;
         try
         {
@@ -2458,13 +2438,15 @@ internal static class GW2Flipper
             for (var i = 1; i < numBuyingPages; i++)
             {
                 currentBuying = await apiClient.WebApi.V2.Commerce.Transactions.Current.Buys.PageAsync(i);
+                numBuyingPages = currentBuying.HttpResponseInfo?.PageTotal;
                 currentBuyingList = currentBuyingList.Concat(currentBuying.ToList()).ToList();
             }
         }
         catch (Exception e)
         {
             Logger.Error(e);
-            return;
+
+            goto RestartCancelUnprofitable;
         }
 
         if (currentBuyingList == null)
@@ -2515,15 +2497,15 @@ internal static class GW2Flipper
 
     private static void AntiAfk()
     {
-        if (DateTime.Now - timeSinceLastAfkCheck < TimeSpan.FromMinutes(10))
+        if (DateTime.Now - timeSinceLastAfkCheck < TimeSpan.FromMinutes(15))
         {
             return;
         }
 
         Logger.Info("Moving for anti-afk");
-        Input.KeyPress(process!, VirtualKeyCode.LEFT);
-        Thread.Sleep(500);
         Input.KeyPress(process!, VirtualKeyCode.RIGHT);
+        Thread.Sleep(1000);
+        Input.KeyPress(process!, VirtualKeyCode.LEFT);
         timeSinceLastAfkCheck = DateTime.Now;
     }
 

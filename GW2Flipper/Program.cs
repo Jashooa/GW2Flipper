@@ -16,9 +16,7 @@ internal static class Program
         try
         {
             await GW2Flipper.Run();
-
-            // await GW2Flipper.RunCancelAll();
-            // await GW2Flipper.RunSellShit();
+            // await GW2Flipper.RunCancelAndSell();
         }
         catch (Exception e)
         {
