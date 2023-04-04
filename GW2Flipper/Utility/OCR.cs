@@ -26,6 +26,7 @@ internal static class OCR
         { "lade ", "Jade " },
         { "QOrichalcum", "Orichalcum" },
         { "Berserker's ron", "Berserker's Iron" },
+        { "Berserker's lron", "Berserker's Iron" },
         { "Sarracentaceae", "Sarraceniaceae" },
         { "Gibbering Skul\n", "Gibbering Skull\n" },
         { "Tyra's", "Tyria's" },
@@ -34,7 +35,7 @@ internal static class OCR
         { "Stiver ", "Silver " },
     };
 
-    public static string ReadName(Bitmap bitmap, Color color)
+    public static string ReadName(Bitmap bitmap, Color color, Dictionary<string, string> stringFixes)
     {
         using var engine = new Engine("./tessdata", "eng_best", TesseractOCR.Enums.EngineMode.Default);
         _ = engine.SetVariable("tessedit_char_whitelist", "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890 + -—/ '\",()");
@@ -63,7 +64,7 @@ internal static class OCR
         }
 
         var pretext = text;
-        text = StringRepair(text);
+        text = StringRepair(text, stringFixes);
         if (pretext != text)
         {
             Logger.Debug($"Repaired {pretext} to {text}");
@@ -82,11 +83,11 @@ internal static class OCR
         return string.Equals(name, compare, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string StringRepair(string text)
+    private static string StringRepair(string text, Dictionary<string, string> stringFixes)
     {
         text += '\n';
 
-        foreach (var fix in StringFixes)
+        foreach (var fix in stringFixes)
         {
             text = text.Replace(fix.Key, fix.Value);
         }

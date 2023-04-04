@@ -40,7 +40,7 @@
     </PackageReference>
     <PackageReference Include="System.Drawing.Common" Version="7.0.0" />
     <PackageReference Include="System.Resources.Extensions" Version="7.0.0" />
-    <PackageReference Include="TesseractOCR" Version="5.3.2" />
+    <PackageReference Include="TesseractOCR" Version="5.3.1" />
     <PackageReference Include="TextCopy" Version="6.2.1" />
   </ItemGroup>
 
@@ -64,6 +64,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="config.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="ocrfixes.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="tessdata\eng.traineddata">

@@ -372,10 +372,10 @@ internal static class Input
     {
         INPUT[] inputs = { input };
         var success = User32.SendInput((uint)inputs.Length, inputs, Marshal.SizeOf(typeof(INPUT)));
-        if (success != inputs.Length)
+        /*if (success != inputs.Length)
         {
             throw new Exception("Some SendInput inputs were not sent successfully.");
-        }
+        }*/
     }
 
     public static void EnsureForegroundWindow(Process process)

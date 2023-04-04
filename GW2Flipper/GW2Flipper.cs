@@ -54,6 +54,7 @@ internal static class GW2Flipper
     private static Process? process;
     private static Point? tradingPostPoint;
     private static DateTime timeSinceLastAfkCheck = DateTime.MinValue;
+    private static DateTime timeSinceLastNewMapCheck = DateTime.MinValue;
     private static DateTime timeSinceLastBuyListGenerate = DateTime.MinValue;
     private static DateTime timeSinceLastSell = DateTime.MinValue;
     private static DateTime timeSinceLastBuy = DateTime.MinValue;
@@ -90,6 +91,7 @@ internal static class GW2Flipper
         Input.EnsureForegroundWindow(process);
 
         tradingPostPoint = await GetTradingPostPoint();
+
         if (tradingPostPoint == null)
         {
             Logger.Error("Couldn't open trading post");
@@ -222,6 +224,7 @@ internal static class GW2Flipper
         Input.EnsureForegroundWindow(process);
 
         tradingPostPoint = await GetTradingPostPoint();
+
         if (tradingPostPoint == null)
         {
             Logger.Error("Couldn't open trading post");
@@ -399,8 +402,8 @@ internal static class GW2Flipper
             BuyItemsList.AddRange(newItemsList);
         }
 
-        // BuyItemsList.Sort((x, y) => y.Profit.CompareTo(x.Profit));
-        BuyItemsList.Shuffle();
+        BuyItemsList.Sort((x, y) => y.Profit.CompareTo(x.Profit));
+        // BuyItemsList.Shuffle();
 
         Logger.Info($"Items: {BuyItemsList.Count}");
     }
@@ -571,7 +574,7 @@ internal static class GW2Flipper
     private static async Task OpenTradingPost()
     {
         var lionPoint = ImageSearch.FindImageInWindow(process!, Resources.TradingPostLion, tradingPostPoint!.Value.X, tradingPostPoint!.Value.Y, Resources.TradingPostLion.Width, Resources.TradingPostLion.Height);
-        var homePoint = ImageSearch.FindImageInWindow(process!, Resources.Home, tradingPostPoint!.Value.X + 377, tradingPostPoint!.Value.Y + 58, Resources.Home.Width, Resources.Home.Height, 0.6);
+        var homePoint = ImageSearch.FindImageInWindow(process!, Resources.Home, tradingPostPoint!.Value.X + 377, tradingPostPoint!.Value.Y + 58, Resources.Home.Width, Resources.Home.Height, 0.9);
 
         if (lionPoint == null || homePoint == null)
         {
@@ -655,7 +658,7 @@ internal static class GW2Flipper
         {
             case TradingPostScreen.Sell:
                 // Check if already open
-                if (ImageSearch.FindImageInWindow(process!, Resources.SellItemsActive, tradingPostPoint!.Value.X + 805, tradingPostPoint!.Value.Y + 130, Resources.SellItemsActive.Width, Resources.SellItemsActive.Height, 0.99) != null)
+                if (ImageSearch.FindImageInWindow(process!, Resources.SellItemsActive, tradingPostPoint!.Value.X + 805, tradingPostPoint!.Value.Y + 130, Resources.SellItemsActive.Width, Resources.SellItemsActive.Height, 0.9) != null)
                 {
                     return;
                 }
@@ -665,7 +668,7 @@ internal static class GW2Flipper
 
                 static bool FindSellItemsActive()
                 {
-                    var find = ImageSearch.FindImageInWindow(process!, Resources.SellItemsActive, tradingPostPoint!.Value.X + 805, tradingPostPoint!.Value.Y + 130, Resources.SellItemsActive.Width, Resources.SellItemsActive.Height, 0.99);
+                    var find = ImageSearch.FindImageInWindow(process!, Resources.SellItemsActive, tradingPostPoint!.Value.X + 805, tradingPostPoint!.Value.Y + 130, Resources.SellItemsActive.Width, Resources.SellItemsActive.Height, 0.9);
                     return find == null;
                 }
 
@@ -673,7 +676,7 @@ internal static class GW2Flipper
                 break;
             case TradingPostScreen.Buy:
                 // Check if already open
-                if (ImageSearch.FindImageInWindow(process!, Resources.BuyItemsActive, tradingPostPoint!.Value.X + 638, tradingPostPoint!.Value.Y + 130, Resources.BuyItemsActive.Width, Resources.BuyItemsActive.Height, 0.99) != null)
+                if (ImageSearch.FindImageInWindow(process!, Resources.BuyItemsActive, tradingPostPoint!.Value.X + 638, tradingPostPoint!.Value.Y + 130, Resources.BuyItemsActive.Width, Resources.BuyItemsActive.Height, 0.9) != null)
                 {
                     return;
                 }
@@ -683,7 +686,7 @@ internal static class GW2Flipper
 
                 static bool FindBuyItemsActive()
                 {
-                    var find = ImageSearch.FindImageInWindow(process!, Resources.BuyItemsActive, tradingPostPoint!.Value.X + 638, tradingPostPoint!.Value.Y + 130, Resources.BuyItemsActive.Width, Resources.BuyItemsActive.Height, 0.99);
+                    var find = ImageSearch.FindImageInWindow(process!, Resources.BuyItemsActive, tradingPostPoint!.Value.X + 638, tradingPostPoint!.Value.Y + 130, Resources.BuyItemsActive.Width, Resources.BuyItemsActive.Height, 0.9);
                     return find == null;
                 }
 
@@ -691,7 +694,7 @@ internal static class GW2Flipper
                 break;
             case TradingPostScreen.Transactions:
                 // Check if already open
-                if (ImageSearch.FindImageInWindow(process!, Resources.TransactionsActive, tradingPostPoint!.Value.X + 817, tradingPostPoint!.Value.Y + 130, Resources.TransactionsActive.Width, Resources.TransactionsActive.Height, 0.99) != null)
+                if (ImageSearch.FindImageInWindow(process!, Resources.TransactionsActive, tradingPostPoint!.Value.X + 817, tradingPostPoint!.Value.Y + 130, Resources.TransactionsActive.Width, Resources.TransactionsActive.Height, 0.9) != null)
                 {
                     return;
                 }
@@ -701,7 +704,7 @@ internal static class GW2Flipper
 
                 static bool FindTransactionsActive()
                 {
-                    var find = ImageSearch.FindImageInWindow(process!, Resources.TransactionsActive, tradingPostPoint!.Value.X + 817, tradingPostPoint!.Value.Y + 130, Resources.TransactionsActive.Width, Resources.TransactionsActive.Height, 0.99);
+                    var find = ImageSearch.FindImageInWindow(process!, Resources.TransactionsActive, tradingPostPoint!.Value.X + 817, tradingPostPoint!.Value.Y + 130, Resources.TransactionsActive.Width, Resources.TransactionsActive.Height, 0.9);
                     return find == null;
                 }
 
@@ -788,8 +791,7 @@ internal static class GW2Flipper
         // Click search bar
         Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 163, tradingPostPoint!.Value.Y + 165);
 
-        // if (ImageSearch.FindImageInWindow(process!, Resources.TradingPostLion, tradingPostPoint!.Value.X, tradingPostPoint!.Value.Y, Resources.TradingPostLion.Width, Resources.TradingPostLion.Height) != null)
-        if (ImageSearch.FindImageInWindow(process!, Resources.Home, tradingPostPoint!.Value.X + 377, tradingPostPoint!.Value.Y + 58, Resources.Home.Width, Resources.Home.Height, 0.9) != null)
+        if (ImageSearch.FindImageInWindow(process!, Resources.TradingPostLion, tradingPostPoint!.Value.X, tradingPostPoint!.Value.Y, Resources.TradingPostLion.Width, Resources.TradingPostLion.Height) != null)
         {
             if (screen != TradingPostScreen.Buy)
             {
@@ -1078,7 +1080,7 @@ internal static class GW2Flipper
 
             // Get OCR of item name and check if it matches API name
             var nameImage = ImageSearch.CaptureWindow(process!, tradingPostPoint!.Value.X + 334, tradingPostPoint.Value.Y + 136, 428, nameSize);
-            var capturedName = OCR.ReadName(nameImage!, RarityColors[itemInfo.Rarity.ToString()!]);
+            var capturedName = OCR.ReadName(nameImage!, RarityColors[itemInfo.Rarity.ToString()!], Config.OcrFixes);
 
             // Check captured name
             if (string.IsNullOrEmpty(capturedName) || !OCR.NameCompare(itemInfo.Name, capturedName))
@@ -1626,7 +1628,7 @@ internal static class GW2Flipper
 
             // Get OCR of item name and check if it matches API name
             var nameImage = ImageSearch.CaptureWindow(process!, tradingPostPoint!.Value.X + 334, tradingPostPoint.Value.Y + 136, 428, nameSize);
-            var capturedName = OCR.ReadName(nameImage!, RarityColors[itemInfo.Rarity.ToString()!]);
+            var capturedName = OCR.ReadName(nameImage!, RarityColors[itemInfo.Rarity.ToString()!], Config.OcrFixes);
 
             // Check captured name
             if (string.IsNullOrEmpty(capturedName) || !OCR.NameCompare(itemInfo.Name, capturedName))
@@ -2008,7 +2010,7 @@ internal static class GW2Flipper
             // Click load more
             for (var i = 0; i < 5; i++)
             {
-                if (ImageSearch.FindImageInWindow(process!, Resources.LoadMore, tradingPostPoint!.Value.X + 610, tradingPostPoint!.Value.Y + 679, Resources.LoadMore.Width, Resources.LoadMore.Height, 0.5) == null)
+                if (FindLoadMore())
                 {
                     break;
                 }
@@ -2019,7 +2021,7 @@ internal static class GW2Flipper
                 Input.MouseMove(process!, 540, 0);
                 try
                 {
-                    await WaitWhile(() => ImageSearch.FindImageInWindow(process!, Resources.LoadMore, tradingPostPoint!.Value.X + 610, tradingPostPoint!.Value.Y + 679, Resources.LoadMore.Width, Resources.LoadMore.Height, 0.5) == null, 500, 5000);
+                    await WaitWhile(FindLoadMore, 500, 5000);
                 }
                 catch (TimeoutException)
                 {
@@ -2046,7 +2048,7 @@ internal static class GW2Flipper
         // Click load more
         for (var i = 0; i < 5; i++)
         {
-            if (ImageSearch.FindImageInWindow(process!, Resources.LoadMore, tradingPostPoint!.Value.X + 610, tradingPostPoint!.Value.Y + 679, Resources.LoadMore.Width, Resources.LoadMore.Height, 0.5) == null)
+            if (FindLoadMore())
             {
                 break;
             }
@@ -2057,7 +2059,7 @@ internal static class GW2Flipper
             Input.MouseMove(process!, 540, 0);
             try
             {
-                await WaitWhile(() => ImageSearch.FindImageInWindow(process!, Resources.LoadMore, tradingPostPoint!.Value.X + 610, tradingPostPoint!.Value.Y + 679, Resources.LoadMore.Width, Resources.LoadMore.Height, 0.5) == null, 500, 5000);
+                await WaitWhile(FindLoadMore, 500, 5000);
             }
             catch (TimeoutException)
             {
@@ -2181,7 +2183,7 @@ internal static class GW2Flipper
 
             // Get OCR of item name and check if it matches API name
             var nameImage = ImageSearch.CaptureWindow(process!, tradingPostPoint!.Value.X + 334, tradingPostPoint.Value.Y + 136, 428, nameSize);
-            var capturedName = OCR.ReadName(nameImage!, RarityColors[itemInfo.Rarity.ToString()!]);
+            var capturedName = OCR.ReadName(nameImage!, RarityColors[itemInfo.Rarity.ToString()!], Config.OcrFixes);
 
             // Check captured name
             if (string.IsNullOrEmpty(capturedName) || !OCR.NameCompare(itemInfo.Name, capturedName))
@@ -2245,7 +2247,7 @@ internal static class GW2Flipper
             // Click load more
             for (var i = 0; i < 5; i++)
             {
-                if (ImageSearch.FindImageInWindow(process!, Resources.LoadMore, tradingPostPoint!.Value.X + 610, tradingPostPoint!.Value.Y + 679, Resources.LoadMore.Width, Resources.LoadMore.Height, 0.5) == null)
+                if (FindLoadMore())
                 {
                     break;
                 }
@@ -2256,7 +2258,7 @@ internal static class GW2Flipper
                 Input.MouseMove(process!, 540, 0);
                 try
                 {
-                    await WaitWhile(() => ImageSearch.FindImageInWindow(process!, Resources.LoadMore, tradingPostPoint!.Value.X + 610, tradingPostPoint!.Value.Y + 679, Resources.LoadMore.Width, Resources.LoadMore.Height, 0.5) == null, 500, 5000);
+                    await WaitWhile(FindLoadMore, 500, 5000);
                 }
                 catch (TimeoutException)
                 {
@@ -2283,7 +2285,7 @@ internal static class GW2Flipper
         // Click load more
         for (var i = 0; i < 5; i++)
         {
-            if (ImageSearch.FindImageInWindow(process!, Resources.LoadMore, tradingPostPoint!.Value.X + 610, tradingPostPoint!.Value.Y + 679, Resources.LoadMore.Width, Resources.LoadMore.Height, 0.5) == null)
+            if (FindLoadMore())
             {
                 break;
             }
@@ -2294,7 +2296,7 @@ internal static class GW2Flipper
             Input.MouseMove(process!, 540, 0);
             try
             {
-                await WaitWhile(() => ImageSearch.FindImageInWindow(process!, Resources.LoadMore, tradingPostPoint!.Value.X + 610, tradingPostPoint!.Value.Y + 679, Resources.LoadMore.Width, Resources.LoadMore.Height, 0.5) == null, 500, 5000);
+                await WaitWhile(FindLoadMore, 500, 5000);
             }
             catch (TimeoutException)
             {
@@ -2476,6 +2478,13 @@ internal static class GW2Flipper
 
     private static void CheckNewMap()
     {
+        if (DateTime.Now - timeSinceLastNewMapCheck < TimeSpan.FromMinutes(45))
+        {
+            return;
+        }
+
+        timeSinceLastNewMapCheck = DateTime.Now;
+
         Logger.Info("Checking if new map available");
         Thread.Sleep(2000);
         var shroomPoint = ImageSearch.FindImageInFullWindow(process!, Resources.NewMapShroom);
@@ -2502,11 +2511,12 @@ internal static class GW2Flipper
             return;
         }
 
+        timeSinceLastAfkCheck = DateTime.Now;
+
         Logger.Info("Moving for anti-afk");
         Input.KeyPress(process!, VirtualKeyCode.RIGHT);
         Thread.Sleep(1000);
         Input.KeyPress(process!, VirtualKeyCode.LEFT);
-        timeSinceLastAfkCheck = DateTime.Now;
     }
 
     private static void PlayCharacterCheck()
@@ -2603,6 +2613,13 @@ internal static class GW2Flipper
     {
         var find1 = ImageSearch.FindImageInWindow(process!, Resources.Available, tradingPostPoint!.Value.X + 531, tradingPostPoint!.Value.Y + 469, Resources.Available.Width, Resources.Available.Height, 0.9);
         var find2 = ImageSearch.FindImageInWindow(process!, Resources.Available, tradingPostPoint!.Value.X + 531, tradingPostPoint!.Value.Y + 493, Resources.Available.Width, Resources.Available.Height, 0.9);
+        return find1 == null && find2 == null;
+    }
+
+    private static bool FindLoadMore()
+    {
+        var find1 = ImageSearch.FindImageInWindow(process!, Resources.LoadMore, tradingPostPoint!.Value.X + 610, tradingPostPoint!.Value.Y + 679, Resources.LoadMore.Width, Resources.LoadMore.Height, 0.5);
+        var find2 = ImageSearch.FindImageInWindow(process!, Resources.LoadMoreDark, tradingPostPoint!.Value.X + 610, tradingPostPoint!.Value.Y + 679, Resources.LoadMoreDark.Width, Resources.LoadMoreDark.Height, 0.5);
         return find1 == null && find2 == null;
     }
 

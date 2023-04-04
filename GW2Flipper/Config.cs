@@ -4,8 +4,9 @@ using System.Text.Json;
 
 internal class Config
 {
-    private const string PATH = "config.json";
+    private const string CONFIG = "config.json";
     private const string BLACKLIST = "blacklist.json";
+    private const string OCRFIXES = "ocrfixes.json";
 
     public static Config? Instance { get; private set; }
 
@@ -47,16 +48,27 @@ internal class Config
 
     public List<int> Blacklist { get; set; } = null!;
 
+    public Dictionary<string, string> OcrFixes { get; set; } = null!;
+
     public static void Load()
     {
-        if (!File.Exists(PATH))
+        var configPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, CONFIG);
+        var blacklistPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, BLACKLIST);
+        var ocrfixesPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, OCRFIXES);
+
+        if (!File.Exists(configPath))
         {
-            throw new FileNotFoundException($"{PATH} is missing.");
+            throw new FileNotFoundException($"{CONFIG} is missing.");
         }
 
-        if (!File.Exists(BLACKLIST))
+        if (!File.Exists(blacklistPath))
         {
             throw new FileNotFoundException($"{BLACKLIST} is missing.");
+        }
+
+        if (!File.Exists(ocrfixesPath))
+        {
+            throw new FileNotFoundException($"{OCRFIXES} is missing.");
         }
 
         var options = new JsonSerializerOptions
@@ -65,7 +77,7 @@ internal class Config
             AllowTrailingCommas = true,
         };
 
-        Instance = JsonSerializer.Deserialize<Config>(File.ReadAllText(PATH), options);
+        Instance = JsonSerializer.Deserialize<Config>(File.ReadAllText(configPath), options);
 
         if (Instance == null)
         {
@@ -73,6 +85,7 @@ internal class Config
         }
 
         Instance.ErrorRangeInverse = 1 + 1 - Instance.ErrorRange;
-        Instance.Blacklist = JsonSerializer.Deserialize<List<int>>(File.ReadAllText(BLACKLIST), options)!;
+        Instance.Blacklist = JsonSerializer.Deserialize<List<int>>(File.ReadAllText(blacklistPath), options)!;
+        Instance.OcrFixes = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(ocrfixesPath), options)!;
     }
 }

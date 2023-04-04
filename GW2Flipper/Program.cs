@@ -8,15 +8,21 @@ internal static class Program
 {
     private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
-    private static async Task Main()
+    private static async Task Main(string[] args)
     {
         SetupLogger();
         Config.Load();
 
         try
         {
-            await GW2Flipper.Run();
-            // await GW2Flipper.RunCancelAndSell();
+            if (args.Length == 0)
+            {
+                await GW2Flipper.Run();
+            }
+            else if (args[0] == "cancel")
+            {
+                await GW2Flipper.RunCancelAndSell();
+            }
         }
         catch (Exception e)
         {
