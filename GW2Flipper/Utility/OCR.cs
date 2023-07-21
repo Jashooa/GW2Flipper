@@ -13,32 +13,10 @@ internal static class OCR
 {
     private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
-    private static readonly Dictionary<string, string> StringFixes = new()
-    {
-        { "Uscku's", "Usoku's" },
-        { " Qil", " Oil" },
-        { "lcebrood", "Icebrood" },
-        { "Baim", "Balm" },
-        { "Cre\n", "Ore\n" },
-        { "Axiquiot\n", "Axiquiotl\n" },
-        { "Piguant", "Piquant" },
-        { "Grawil", "Grawl" },
-        { "lade ", "Jade " },
-        { "QOrichalcum", "Orichalcum" },
-        { "Berserker's ron", "Berserker's Iron" },
-        { "Berserker's lron", "Berserker's Iron" },
-        { "Sarracentaceae", "Sarraceniaceae" },
-        { "Gibbering Skul\n", "Gibbering Skull\n" },
-        { "Tyra's", "Tyria's" },
-        { "Sacbosa\n", "Saobosa\n" },
-        { "leweled ", "Jeweled " },
-        { "Stiver ", "Silver " },
-    };
-
     public static string ReadName(Bitmap bitmap, Color color, Dictionary<string, string> stringFixes)
     {
         using var engine = new Engine("./tessdata", "eng_best", TesseractOCR.Enums.EngineMode.Default);
-        _ = engine.SetVariable("tessedit_char_whitelist", "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890 + -—/ '\",()");
+        _ = engine.SetVariable("tessedit_char_whitelist", "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890 + -—/ '\",():");
 
         var ms = new MemoryStream();
         bitmap.BinarizeByColor(color, 0.55).Save(ms, ImageFormat.Bmp);

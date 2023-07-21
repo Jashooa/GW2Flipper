@@ -23,6 +23,7 @@ internal static class GW2Flipper
 {
     private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
     private static readonly Config Config = Config.Instance!;
+    private static readonly bool Debug = true;
 
     private static readonly List<BuyItem> BuyItemsList = new();
     private static readonly List<BuyItem> RemoveItemsList = new();
@@ -80,9 +81,9 @@ internal static class GW2Flipper
 
         process.PriorityClass = ProcessPriorityClass.High;
 
-        foreach (var coherentProcess in Process.GetProcessesByName("CoherentUI_Host").Where(p => p.SessionId == Process.GetCurrentProcess().SessionId))
+        foreach (var cefProcess in Process.GetProcessesByName("CefHost").Where(p => p.SessionId == Process.GetCurrentProcess().SessionId))
         {
-            coherentProcess.PriorityClass = ProcessPriorityClass.High;
+            cefProcess.PriorityClass = ProcessPriorityClass.High;
         }
 
         _ = User32.MoveWindow(process.MainWindowHandle, 0, 5, 1080, 850, true);
@@ -213,9 +214,9 @@ internal static class GW2Flipper
 
         process.PriorityClass = ProcessPriorityClass.High;
 
-        foreach (var coherentProcess in Process.GetProcessesByName("CoherentUI_Host").Where(p => p.SessionId == Process.GetCurrentProcess().SessionId))
+        foreach (var cefProcess in Process.GetProcessesByName("CefHost").Where(p => p.SessionId == Process.GetCurrentProcess().SessionId))
         {
-            coherentProcess.PriorityClass = ProcessPriorityClass.High;
+            cefProcess.PriorityClass = ProcessPriorityClass.High;
         }
 
         _ = User32.MoveWindow(process.MainWindowHandle, 0, 5, 1080, 850, true);
@@ -276,9 +277,9 @@ internal static class GW2Flipper
 
         process.PriorityClass = ProcessPriorityClass.High;
 
-        foreach (var coherentProcess in Process.GetProcessesByName("CoherentUI_Host").Where(p => p.SessionId == Process.GetCurrentProcess().SessionId))
+        foreach (var cefProcess in Process.GetProcessesByName("CoherentUI_Host").Where(p => p.SessionId == Process.GetCurrentProcess().SessionId))
         {
-            coherentProcess.PriorityClass = ProcessPriorityClass.High;
+            cefProcess.PriorityClass = ProcessPriorityClass.High;
         }
 
         _ = User32.MoveWindow(process.MainWindowHandle, 0, 5, 1080, 850, true);
@@ -303,6 +304,145 @@ internal static class GW2Flipper
         {
             Logger.Error(e);
         }
+    }
+
+    public static async Task RunImageSave()
+    {
+        process = Array.Find(Process.GetProcessesByName("Gw2-64"), p => p.SessionId == Process.GetCurrentProcess().SessionId);
+        if (process == null)
+        {
+            Logger.Error("Couldn't find process");
+            return;
+        }
+
+        Logger.Info($"Found process: [{process!.Id}] {process!.MainWindowTitle}");
+
+        process.PriorityClass = ProcessPriorityClass.High;
+
+        foreach (var cefProcess in Process.GetProcessesByName("CefHost").Where(p => p.SessionId == Process.GetCurrentProcess().SessionId))
+        {
+            cefProcess.PriorityClass = ProcessPriorityClass.High;
+        }
+
+        _ = User32.MoveWindow(process.MainWindowHandle, 0, 5, 1080, 850, true);
+        _ = User32.MoveWindow(Process.GetCurrentProcess().MainWindowHandle, 0, 855, 1080, 360, true);
+
+        Input.EnsureForegroundWindow(process);
+
+        LogFullImage();
+
+        /*// NewMapShroom
+        LogSpecificImage("NewMapShroom", 148, 418, 24, 24);
+
+        // NewMapYes
+        LogSpecificImage("NewMapYes", 30, 460, 52, 19);
+
+        return;*/
+
+        tradingPostPoint = ImageSearch.FindImageInFullWindow(process!, Resources.TradingPostLion);
+
+        if (tradingPostPoint == null)
+        {
+            Logger.Error("Couldn't open trading post");
+            return;
+        }
+
+        Logger.Info($"Found trading post at: {tradingPostPoint}");
+
+        LogTPImage();
+
+        // SuccessOK
+        // LogSpecificImage("SuccessOK", tradingPostPoint!.Value.X + 392, tradingPostPoint!.Value.Y + 365, 116, 18);
+
+        // NewDelivery
+        // LogSpecificImage("NewDelivery", tradingPostPoint!.Value.X + 70, tradingPostPoint!.Value.Y + 445, 14, 14);
+
+        // Buying
+        // LogSpecificImage("Buying", tradingPostPoint!.Value.X + 672, tradingPostPoint!.Value.Y + 238, 40, 7);
+
+        return;
+
+        // Home
+        LogSpecificImage("Home", tradingPostPoint!.Value.X + 377, tradingPostPoint!.Value.Y + 58, 44, 18);
+
+        // FilterOpen
+        Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 287, tradingPostPoint!.Value.Y + 165);
+        Input.MouseMove(process!, 540, 0);
+        await Task.Delay(2500);
+        LogSpecificImage("FilterOpen", tradingPostPoint!.Value.X + 50, tradingPostPoint!.Value.Y + 182, 3, 3);
+
+        // BuyItemsActive
+        Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 566, tradingPostPoint!.Value.Y + 90);
+        Input.MouseMove(process!, 540, 0);
+        await Task.Delay(2500);
+        LogSpecificImage("BuyItemsActive", tradingPostPoint!.Value.X + 638, tradingPostPoint!.Value.Y + 130, 10, 10);
+
+        // Qty
+        LogSpecificImage("Qty", tradingPostPoint!.Value.X + 324, tradingPostPoint!.Value.Y + 191, 20, 10);
+
+        // ResultCorner
+        LogSpecificImage("ResultCorner", tradingPostPoint!.Value.X + 322, tradingPostPoint!.Value.Y + 213, 2, 2);
+
+        // VendorE
+        Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 350, tradingPostPoint!.Value.Y + 240);
+        Input.MouseMove(process!, 540, 0);
+        await Task.Delay(2500);
+        LogSpecificImage("VendorE", tradingPostPoint!.Value.X + 345, tradingPostPoint!.Value.Y + 176, 6, 2);
+
+        // Available
+        LogSpecificImage("Available", tradingPostPoint!.Value.X + 531, tradingPostPoint!.Value.Y + 469, 15, 10);
+
+        // BuyInstantly
+        LogSpecificImage("BuyInstantly", tradingPostPoint!.Value.X + 382, tradingPostPoint!.Value.Y + 364, 116, 18);
+
+        // PlaceOrder
+        Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 254, tradingPostPoint!.Value.Y + 499);
+        Input.MouseMove(process!, 540, 0);
+        await Task.Delay(2500);
+        LogSpecificImage("PlaceOrder", tradingPostPoint!.Value.X + 382, tradingPostPoint!.Value.Y + 364, 116, 18);
+
+        // Exit
+        LogSpecificImage("Exit", tradingPostPoint!.Value.X + 769, tradingPostPoint!.Value.Y + 117, 16, 16);
+        Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 777, tradingPostPoint!.Value.Y + 125);
+        await Task.Delay(2500);
+
+        // SellItemsActive
+        Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 732, tradingPostPoint!.Value.Y + 90);
+        Input.MouseMove(process!, 540, 0);
+        await Task.Delay(2500);
+        LogSpecificImage("SellItemsActive", tradingPostPoint!.Value.X + 805, tradingPostPoint!.Value.Y + 130, 10, 10);
+
+        // SellInstantly
+        Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 350, tradingPostPoint!.Value.Y + 214);
+        Input.MouseMove(process!, 540, 0);
+        await Task.Delay(2500);
+        LogSpecificImage("SellInstantly", tradingPostPoint!.Value.X + 382, tradingPostPoint!.Value.Y + 364, 116, 18);
+
+        // ListItem
+        Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 542, tradingPostPoint!.Value.Y + 499);
+        Input.MouseMove(process!, 540, 0);
+        await Task.Delay(2500);
+        LogSpecificImage("ListItem", tradingPostPoint!.Value.X + 382, tradingPostPoint!.Value.Y + 364, 116, 18);
+        Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 777, tradingPostPoint!.Value.Y + 125);
+        await Task.Delay(2500);
+
+        // TransactionsActive
+        Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 899, tradingPostPoint!.Value.Y + 90);
+        Input.MouseMove(process!, 540, 0);
+        await Task.Delay(2500);
+        LogSpecificImage("TransactionsActive", tradingPostPoint!.Value.X + 817, tradingPostPoint!.Value.Y + 130, 10, 10);
+
+        // CurrentBuying
+        LogSpecificImage("CurrentBuying", tradingPostPoint!.Value.X + 60, tradingPostPoint!.Value.Y + 224, 34, 24);
+
+        // LoadMore
+        LogSpecificImage("LoadMore", tradingPostPoint!.Value.X + 610, tradingPostPoint!.Value.Y + 679, 80, 18);
+
+        // NoItems
+        Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 174, tradingPostPoint!.Value.Y + 240);
+        Input.MouseMove(process!, 540, 0);
+        await Task.Delay(2500);
+        LogSpecificImage("NoItems", tradingPostPoint!.Value.X + 494, tradingPostPoint!.Value.Y + 412, 9, 15);
     }
 
     private static async Task UpdateBuyList()
@@ -538,7 +678,7 @@ internal static class GW2Flipper
             }
             catch (TimeoutException)
             {
-                PlayCharacterCheck();
+                // PlayCharacterCheck();
 
                 if (ResetUI())
                 {
@@ -720,7 +860,7 @@ internal static class GW2Flipper
         catch (TimeoutException)
         {
             LogImage();
-            PlayCharacterCheck();
+            // PlayCharacterCheck();
             throw new TimeoutException();
         }
 
@@ -747,7 +887,7 @@ internal static class GW2Flipper
         await Task.Delay(500);
     }
 
-    private static async Task SearchForItem(Gw2Sharp.WebApi.V2.Models.Item itemInfo, TradingPostScreen screen)
+    /* private static async Task SearchForItem(Gw2Sharp.WebApi.V2.Models.Item itemInfo, TradingPostScreen screen)
     {
         await Task.Delay(500);
 
@@ -757,7 +897,7 @@ internal static class GW2Flipper
         if (screen == TradingPostScreen.Buy)
         {
             // Check if filter isn't open
-            if (ImageSearch.FindImageInWindow(process!, Resources.FilterOpen, tradingPostPoint!.Value.X + 50, tradingPostPoint!.Value.Y + 182, Resources.FilterOpen.Width, Resources.FilterOpen.Height, 0.9) == null)
+            if (FindFilter())
             {
                 await Task.Delay(200);
 
@@ -803,6 +943,7 @@ internal static class GW2Flipper
             }
 
             // Paste in name
+            // Input.KeyStringSend(process!, itemInfo.Name.MaxSize(30));
             Input.KeyStringSendClipboard(process!, itemInfo.Name.MaxSize(30));
             Input.KeyPress(process!, VirtualKeyCode.RETURN);
         }
@@ -826,20 +967,90 @@ internal static class GW2Flipper
         }
 
         await Task.Delay(1000);
+    }*/
+
+    private static async Task SearchForItem(Gw2Sharp.WebApi.V2.Models.Item itemInfo, TradingPostScreen screen)
+    {
+        await Task.Delay(500);
+
+        // Click search bar
+        Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 163, tradingPostPoint!.Value.Y + 165);
+
+        // Check if filter isn't open
+        if (FindFilter())
+        {
+            await Task.Delay(200);
+
+            // Click filter cog
+            Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 287, tradingPostPoint!.Value.Y + 165);
+
+            // Wait for filter to show up
+            try
+            {
+                await WaitWhile(FindFilter, 500, 5000);
+            }
+            catch (TimeoutException)
+            {
+                LogImage();
+                throw new TimeoutException();
+            }
+        }
+
+        // Click reset filters
+        if (screen == TradingPostScreen.Buy)
+        {
+            Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 173, tradingPostPoint!.Value.Y + 356);
+            Thread.Sleep(1000);
+        }
+        else
+        {
+            Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 173, tradingPostPoint!.Value.Y + 309);
+        }
+
+        // Click search bar
+        Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 163, tradingPostPoint!.Value.Y + 165);
+
+        if (ImageSearch.FindImageInWindow(process!, Resources.TradingPostLion, tradingPostPoint!.Value.X, tradingPostPoint!.Value.Y, Resources.TradingPostLion.Width, Resources.TradingPostLion.Height) != null)
+        {
+            // Paste in name
+            // Input.KeyStringSend(process!, itemInfo.Name.MaxSize(30));
+            Input.KeyStringSendClipboard(process!, itemInfo.Name.MaxSize(30));
+            Input.KeyPress(process!, VirtualKeyCode.RETURN);
+        }
+
+        if (screen == TradingPostScreen.Buy)
+        {
+            // Set rarity
+            Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 173, tradingPostPoint!.Value.Y + 205);
+            await Task.Delay(500);
+            Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 173, tradingPostPoint!.Value.Y + 230 + (25 * RarityOrder[itemInfo.Rarity!]));
+            await Task.Delay(500);
+        }
+
+        // Input level
+        Input.MouseMoveAndDoubleClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 63, tradingPostPoint!.Value.Y + 270);
+        Input.KeyStringSend(process!, itemInfo.Level.ToString());
+        Input.MouseMoveAndDoubleClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 124, tradingPostPoint!.Value.Y + 270);
+        Input.KeyStringSend(process!, itemInfo.Level.ToString());
+
+        // Click filter cog to close
+        Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 287, tradingPostPoint!.Value.Y + 165);
+
+        await Task.Delay(1000);
     }
 
     private static int GetItemWindowPrice(int offset)
     {
         DismissSuccessWithOffset(offset);
-        Input.MouseMoveAndDoubleClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 412, tradingPostPoint.Value.Y + 279 + offset, 75);
+        Input.MouseMoveAndDoubleClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 412, tradingPostPoint.Value.Y + 279 + offset, 100);
         var goldAmount = Convert.ToInt32(Input.GetSelectedText(process!));
 
         DismissSuccessWithOffset(offset);
-        Input.MouseMoveAndDoubleClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 502, tradingPostPoint.Value.Y + 279 + offset, 75);
+        Input.MouseMoveAndDoubleClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 502, tradingPostPoint.Value.Y + 279 + offset, 100);
         var silverAmount = Convert.ToInt32(Input.GetSelectedText(process!));
 
         DismissSuccessWithOffset(offset);
-        Input.MouseMoveAndDoubleClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 576, tradingPostPoint.Value.Y + 279 + offset, 75);
+        Input.MouseMoveAndDoubleClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 576, tradingPostPoint.Value.Y + 279 + offset, 100);
         var copperAmount = Convert.ToInt32(Input.GetSelectedText(process!));
 
         return ToCurrency(goldAmount, silverAmount, copperAmount);
@@ -848,15 +1059,15 @@ internal static class GW2Flipper
     private static void SetItemWindowPrice(int offset, int coins)
     {
         DismissSuccessWithOffset(offset);
-        Input.MouseMoveAndDoubleClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 412, tradingPostPoint.Value.Y + 279 + offset, 75);
+        Input.MouseMoveAndDoubleClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 412, tradingPostPoint.Value.Y + 279 + offset, 100);
         Input.KeyStringSend(process!, ToGold(coins).ToString());
 
         DismissSuccessWithOffset(offset);
-        Input.MouseMoveAndDoubleClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 502, tradingPostPoint.Value.Y + 279 + offset, 75);
+        Input.MouseMoveAndDoubleClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 502, tradingPostPoint.Value.Y + 279 + offset, 100);
         Input.KeyStringSend(process!, ToSilver(coins).ToString());
 
         DismissSuccessWithOffset(offset);
-        Input.MouseMoveAndDoubleClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 576, tradingPostPoint.Value.Y + 279 + offset, 75);
+        Input.MouseMoveAndDoubleClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 576, tradingPostPoint.Value.Y + 279 + offset, 100);
         Input.KeyStringSend(process!, ToCopper(coins).ToString());
     }
 
@@ -1062,7 +1273,7 @@ internal static class GW2Flipper
             }
 
             // Find position of 'e' in Vendor to set the offset for other UI positions
-            var vendorEPos = ImageSearch.FindImageInWindow(process!, Resources.VendorE, tradingPostPoint!.Value.X + 345, tradingPostPoint!.Value.Y + 176, Resources.VendorE.Width, Resources.VendorE.Height + 30, 0.9);
+            var vendorEPos = ImageSearch.FindImageInWindow(process!, Resources.VendorE, tradingPostPoint!.Value.X + 345, tradingPostPoint!.Value.Y + 176, Resources.VendorE.Width, Resources.VendorE.Height + 31, 0.9);
             if (vendorEPos == null)
             {
                 Logger.Debug("vendorEPos null");
@@ -1072,9 +1283,9 @@ internal static class GW2Flipper
 
             var offset = 0;
             var nameSize = 34;
-            if (vendorEPos.Value.Y == tradingPostPoint!.Value.Y + 206)
+            if (vendorEPos.Value.Y == tradingPostPoint!.Value.Y + 207)
             {
-                offset = 24;
+                offset = 25;
                 nameSize = 64;
             }
 
@@ -1172,8 +1383,11 @@ internal static class GW2Flipper
             // Sell item
             if (ImageSearch.FindImageInWindow(process!, Resources.ListItem, tradingPostPoint!.Value.X + 382, tradingPostPoint!.Value.Y + 364 + offset, Resources.ListItem.Width, Resources.ListItem.Height, 0.5) != null)
             {
-                Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 440, tradingPostPoint.Value.Y + 373 + offset, 100);
-                await Task.Delay(100);
+                if (!Debug)
+                {
+                    Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 440, tradingPostPoint.Value.Y + 373 + offset, 100);
+                    await Task.Delay(100);
+                }
             }
             else if (ImageSearch.FindImageInWindow(process!, Resources.SellInstantly, tradingPostPoint!.Value.X + 382, tradingPostPoint!.Value.Y + 364 + offset, Resources.SellInstantly.Width, Resources.SellInstantly.Height, 0.5) != null)
             {
@@ -1551,6 +1765,7 @@ internal static class GW2Flipper
         if (qtyPoint == null)
         {
             Logger.Debug("qtyPoint null");
+
             if (!ResetUI())
             {
                 return;
@@ -1610,7 +1825,7 @@ internal static class GW2Flipper
             }
 
             // Find position of 'e' in Vendor to set the offset for other UI positions
-            var vendorEPos = ImageSearch.FindImageInWindow(process!, Resources.VendorE, tradingPostPoint!.Value.X + 345, tradingPostPoint!.Value.Y + 176, Resources.VendorE.Width, Resources.VendorE.Height + 30, 0.9);
+            var vendorEPos = ImageSearch.FindImageInWindow(process!, Resources.VendorE, tradingPostPoint!.Value.X + 345, tradingPostPoint!.Value.Y + 176, Resources.VendorE.Width, Resources.VendorE.Height + 31, 0.9);
             if (vendorEPos == null)
             {
                 Logger.Debug("vendorEPos null");
@@ -1620,9 +1835,9 @@ internal static class GW2Flipper
 
             var offset = 0;
             var nameSize = 34;
-            if (vendorEPos.Value.Y == tradingPostPoint!.Value.Y + 206)
+            if (vendorEPos.Value.Y == tradingPostPoint!.Value.Y + 207)
             {
-                offset = 24;
+                offset = 25;
                 nameSize = 64;
             }
 
@@ -1692,8 +1907,11 @@ internal static class GW2Flipper
             {
                 Logger.Info($"Buying {quantity} for {buyPrice} coins each");
 
-                Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 440, tradingPostPoint.Value.Y + 373 + offset, 100);
-                await Task.Delay(100);
+                if (!Debug)
+                {
+                    Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 440, tradingPostPoint.Value.Y + 373 + offset, 100);
+                    await Task.Delay(100);
+                }
             }
             else if (ImageSearch.FindImageInWindow(process!, Resources.BuyInstantly, tradingPostPoint!.Value.X + 382, tradingPostPoint!.Value.Y + 364 + offset, Resources.BuyInstantly.Width, Resources.BuyInstantly.Height, 0.5) != null)
             {
@@ -2167,7 +2385,7 @@ internal static class GW2Flipper
             }
 
             // Find position of 'e' in Vendor to set the offset for other UI positions
-            var vendorEPos = ImageSearch.FindImageInWindow(process!, Resources.VendorE, tradingPostPoint!.Value.X + 345, tradingPostPoint!.Value.Y + 176, Resources.VendorE.Width, Resources.VendorE.Height + 30, 0.9);
+            var vendorEPos = ImageSearch.FindImageInWindow(process!, Resources.VendorE, tradingPostPoint!.Value.X + 345, tradingPostPoint!.Value.Y + 176, Resources.VendorE.Width, Resources.VendorE.Height + 31, 0.9);
             if (vendorEPos == null)
             {
                 Logger.Debug("vendorEPos null");
@@ -2176,7 +2394,7 @@ internal static class GW2Flipper
             }
 
             var nameSize = 34;
-            if (vendorEPos.Value.Y == tradingPostPoint!.Value.Y + 206)
+            if (vendorEPos.Value.Y == tradingPostPoint!.Value.Y + 207)
             {
                 nameSize = 64;
             }
@@ -2514,12 +2732,12 @@ internal static class GW2Flipper
         timeSinceLastAfkCheck = DateTime.Now;
 
         Logger.Info("Moving for anti-afk");
-        Input.KeyPress(process!, VirtualKeyCode.RIGHT);
+        Input.KeyPress(process!, VirtualKeyCode.RIGHT, 100);
         Thread.Sleep(1000);
-        Input.KeyPress(process!, VirtualKeyCode.LEFT);
+        Input.KeyPress(process!, VirtualKeyCode.LEFT, 100);
     }
 
-    private static void PlayCharacterCheck()
+    /*private static void PlayCharacterCheck()
     {
         Input.MouseMove(process!, 540, 0);
         Input.MouseClick(process!, Input.MouseButton.LeftButton);
@@ -2532,7 +2750,7 @@ internal static class GW2Flipper
             Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, 872, 788);
             Thread.Sleep(30000);
         }
-    }
+    }*/
 
     /*private static void CheckPosition()
     {
@@ -2605,22 +2823,23 @@ internal static class GW2Flipper
 
     private static bool FindVendorE()
     {
-        var find = ImageSearch.FindImageInWindow(process!, Resources.VendorE, tradingPostPoint!.Value.X + 345, tradingPostPoint!.Value.Y + 176, Resources.VendorE.Width, Resources.VendorE.Height + 30, 0.9);
+        var find = ImageSearch.FindImageInWindow(process!, Resources.VendorE, tradingPostPoint!.Value.X + 345, tradingPostPoint!.Value.Y + 176, Resources.VendorE.Width, Resources.VendorE.Height + 31, 0.9);
         return find == null;
     }
 
     private static bool FindAvailable()
     {
         var find1 = ImageSearch.FindImageInWindow(process!, Resources.Available, tradingPostPoint!.Value.X + 531, tradingPostPoint!.Value.Y + 469, Resources.Available.Width, Resources.Available.Height, 0.9);
-        var find2 = ImageSearch.FindImageInWindow(process!, Resources.Available, tradingPostPoint!.Value.X + 531, tradingPostPoint!.Value.Y + 493, Resources.Available.Width, Resources.Available.Height, 0.9);
+        var find2 = ImageSearch.FindImageInWindow(process!, Resources.Available, tradingPostPoint!.Value.X + 531, tradingPostPoint!.Value.Y + 494, Resources.Available.Width, Resources.Available.Height, 0.9);
         return find1 == null && find2 == null;
     }
 
     private static bool FindLoadMore()
     {
-        var find1 = ImageSearch.FindImageInWindow(process!, Resources.LoadMore, tradingPostPoint!.Value.X + 610, tradingPostPoint!.Value.Y + 679, Resources.LoadMore.Width, Resources.LoadMore.Height, 0.5);
-        var find2 = ImageSearch.FindImageInWindow(process!, Resources.LoadMoreDark, tradingPostPoint!.Value.X + 610, tradingPostPoint!.Value.Y + 679, Resources.LoadMoreDark.Width, Resources.LoadMoreDark.Height, 0.5);
-        return find1 == null && find2 == null;
+        var find1 = ImageSearch.FindImageInWindow(process!, Resources.LoadMore, tradingPostPoint!.Value.X + 610, tradingPostPoint!.Value.Y + 679, Resources.LoadMore.Width, Resources.LoadMore.Height, 0.9);
+        // var find2 = ImageSearch.FindImageInWindow(process!, Resources.LoadMoreDark, tradingPostPoint!.Value.X + 610, tradingPostPoint!.Value.Y + 679, Resources.LoadMoreDark.Width, Resources.LoadMoreDark.Height, 0.9);
+        // return find1 == null && find2 == null;
+        return find1 == null;
     }
 
     private static void DismissSuccess()
@@ -2663,6 +2882,23 @@ internal static class GW2Flipper
         }
     }
 
+    private static void LogFullImage()
+    {
+        var image = ImageSearch.CaptureFullWindow(process!);
+        if (image != null)
+        {
+            var directory = Path.Combine("images");
+            if (!Directory.Exists(directory))
+            {
+                _ = Directory.CreateDirectory(directory);
+            }
+
+            var fileName = Path.Combine(directory, $"{DateTime.Now.ToString("s").Replace(":", string.Empty)}.bmp");
+            Logger.Error($"File saved as {fileName}");
+            image.Save(fileName, ImageFormat.Bmp);
+        }
+    }
+
     private static void LogTPImage()
     {
         if (tradingPostPoint == null)
@@ -2673,13 +2909,30 @@ internal static class GW2Flipper
         var image = ImageSearch.CaptureWindow(process!, tradingPostPoint.Value.X, tradingPostPoint.Value.Y, 992, 732);
         if (image != null)
         {
-            var directory = Path.Combine("TPImages");
+            var directory = Path.Combine("images");
             if (!Directory.Exists(directory))
             {
                 _ = Directory.CreateDirectory(directory);
             }
 
             var fileName = Path.Combine(directory, $"{DateTime.Now.ToString("s").Replace(":", string.Empty)}.bmp");
+            Logger.Error($"File saved as {fileName}");
+            image.Save(fileName, ImageFormat.Bmp);
+        }
+    }
+
+    private static void LogSpecificImage(string name, int x, int y, int width, int height)
+    {
+        var image = ImageSearch.CaptureWindow(process!, x, y, width, height);
+        if (image != null)
+        {
+            var directory = Path.Combine("images");
+            if (!Directory.Exists(directory))
+            {
+                _ = Directory.CreateDirectory(directory);
+            }
+
+            var fileName = Path.Combine(directory, $"{name}.bmp");
             Logger.Error($"File saved as {fileName}");
             image.Save(fileName, ImageFormat.Bmp);
         }

@@ -58,7 +58,7 @@ Current Buying
 	Mid			174,240
 Load More Button
     Coords      610,679
-    Size        81,18
+    Size        80,18
     Mid         650,688
 
 Error Ok Button
@@ -147,10 +147,10 @@ Item Buy/Sell Window
 		Coords	462,280	462,304
 		Size	12,6
     Vendor E
-        Coords  345,176 345,206
+        Coords  345,176 345,207
         Size    6,2
     "Available"
-        Coords  531,469 531,493
+        Coords  531,469 531,494
         Size    15,10
 	Currency
 		Gold

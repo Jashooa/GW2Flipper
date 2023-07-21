@@ -149,7 +149,7 @@ internal static class Input
         SendInput(input);
     }
 
-    public static void MouseClick(Process process, MouseButton button, int delay = 50)
+    public static void MouseClick(Process process, MouseButton button, int delay = 100)
     {
         MouseButtonDown(process, button);
         Thread.Sleep(delay);
@@ -157,7 +157,7 @@ internal static class Input
         Thread.Sleep(delay);
     }
 
-    public static void MouseDoubleClick(Process process, MouseButton button, int delay = 50)
+    public static void MouseDoubleClick(Process process, MouseButton button, int delay = 100)
     {
         MouseButtonDown(process, button);
         Thread.Sleep(delay);
@@ -169,14 +169,14 @@ internal static class Input
         Thread.Sleep(delay);
     }
 
-    public static void MouseMoveAndClick(Process process, MouseButton button, int x, int y, int delay = 50)
+    public static void MouseMoveAndClick(Process process, MouseButton button, int x, int y, int delay = 100)
     {
         MouseMove(process, x, y);
         Thread.Sleep(delay);
         MouseClick(process, button, delay);
     }
 
-    public static void MouseMoveAndDoubleClick(Process process, MouseButton button, int x, int y, int delay = 50)
+    public static void MouseMoveAndDoubleClick(Process process, MouseButton button, int x, int y, int delay = 100)
     {
         MouseMove(process, x, y);
         Thread.Sleep(delay);
@@ -229,7 +229,7 @@ internal static class Input
         SendInput(input);
     }
 
-    public static void KeyPress(Process process, VirtualKeyCode keyCode, int delay = 50)
+    public static void KeyPress(Process process, VirtualKeyCode keyCode, int delay = 100)
     {
         KeyDown(process, keyCode);
         Thread.Sleep(delay);
@@ -237,7 +237,7 @@ internal static class Input
         Thread.Sleep(delay);
     }
 
-    public static void KeyPressWithModifier(Process process, VirtualKeyCode keyCode, bool alt, bool control, bool shift, int delay = 50)
+    public static void KeyPressWithModifier(Process process, VirtualKeyCode keyCode, bool alt, bool control, bool shift, int delay = 100)
     {
         if (alt)
         {
@@ -334,7 +334,7 @@ internal static class Input
         SendInput(input);
     }
 
-    public static void KeyCharPress(Process process, char character, int delay = 50)
+    public static void KeyCharPress(Process process, char character, int delay = 100)
     {
         KeyCharDown(process, character);
         Thread.Sleep(delay);
@@ -342,7 +342,7 @@ internal static class Input
         Thread.Sleep(delay);
     }
 
-    public static void KeyStringSend(Process process, string text, int delay = 50)
+    public static void KeyStringSend(Process process, string text, int delay = 100)
     {
         foreach (var character in text)
         {
