@@ -173,6 +173,16 @@ namespace GW2Flipper.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
+        internal static System.Drawing.Bitmap LoadMoreLight {
+            get {
+                object obj = ResourceManager.GetObject("LoadMoreLight", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
         internal static System.Drawing.Bitmap NewDelivery {
             get {
                 object obj = ResourceManager.GetObject("NewDelivery", resourceCulture);

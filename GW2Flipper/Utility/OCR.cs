@@ -13,7 +13,7 @@ internal static class OCR
 {
     private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
-    public static string ReadName(Bitmap bitmap, Color color, Dictionary<string, string> stringFixes)
+    public static string ReadName(Bitmap bitmap, Color color)
     {
         using var engine = new Engine("./tessdata", "eng_best", TesseractOCR.Enums.EngineMode.Default);
         _ = engine.SetVariable("tessedit_char_whitelist", "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890 + -—/ '\",():");
@@ -41,20 +41,50 @@ internal static class OCR
             Logger.Debug($"Mean confidence: {page.MeanConfidence}");
         }
 
-        var pretext = text;
-        text = StringRepair(text, stringFixes);
-        if (pretext != text)
-        {
-            Logger.Debug($"Repaired {pretext} to {text}");
-        }
-
         return text;
     }
 
-    public static bool NameCompare(string name, string compare)
+    public static bool NameCompare(string name, string compare, Dictionary<string, string> stringFixes)
     {
-        name = name.RemoveDiacritics().Replace(" ", string.Empty);
-        compare = compare.Replace(" ", string.Empty);
+        var same = string.Equals(name, compare, StringComparison.OrdinalIgnoreCase);
+
+        if (!same)
+        {
+            var fileName = Path.Combine("logs", "wrongnames.txt");
+            var entry = $"Item name: {name} Captured name: {compare}";
+            var isMatch = false;
+
+            if (File.Exists(fileName))
+            {
+                foreach (var line in File.ReadLines(fileName))
+                {
+                    if (string.Equals(line, entry))
+                    {
+                        isMatch = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!isMatch && !compare.Contains(name))
+            {
+                File.AppendAllText(fileName, entry + "\n");
+
+                var lines = File.ReadAllLines(fileName);
+                var linesOrdered = lines.OrderBy(line => line).ToList();
+                File.WriteAllLines(fileName, linesOrdered);
+            }
+        }
+
+        var pretext = compare;
+        compare = StringRepair(compare, stringFixes);
+        if (pretext != compare)
+        {
+            Logger.Debug($"Repaired {pretext} to {compare}");
+        }
+
+        name = name.RemoveDiacritics().StripPunctuation().Replace(" ", string.Empty);
+        compare = compare.StripPunctuation().Replace(" ", string.Empty);
 
         Logger.Debug($"Item name: {name} Captured name: {compare}");
 

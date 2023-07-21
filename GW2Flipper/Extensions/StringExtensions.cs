@@ -23,4 +23,18 @@ public static class StringExtensions
 
         return stringBuilder.ToString().Normalize(NormalizationForm.FormC);
     }
+
+    public static string StripPunctuation(this string s)
+    {
+        var sb = new StringBuilder();
+        foreach (var c in s)
+        {
+            if (!char.IsPunctuation(c))
+            {
+                sb.Append(c);
+            }
+        }
+
+        return sb.ToString();
+    }
 }

@@ -23,7 +23,7 @@ internal static class GW2Flipper
 {
     private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
     private static readonly Config Config = Config.Instance!;
-    private static readonly bool Debug = true;
+    private static readonly bool Debug = false;
 
     private static readonly List<BuyItem> BuyItemsList = new();
     private static readonly List<BuyItem> RemoveItemsList = new();
@@ -360,7 +360,7 @@ internal static class GW2Flipper
         // Buying
         // LogSpecificImage("Buying", tradingPostPoint!.Value.X + 672, tradingPostPoint!.Value.Y + 238, 40, 7);
 
-        return;
+        // return;
 
         // Home
         LogSpecificImage("Home", tradingPostPoint!.Value.X + 377, tradingPostPoint!.Value.Y + 58, 44, 18);
@@ -437,6 +437,12 @@ internal static class GW2Flipper
 
         // LoadMore
         LogSpecificImage("LoadMore", tradingPostPoint!.Value.X + 610, tradingPostPoint!.Value.Y + 679, 80, 18);
+
+        // LoadMoreLight
+        Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 650, tradingPostPoint!.Value.Y + 688);
+        Input.MouseMove(process!, 540, 0);
+        await Task.Delay(2500);
+        LogSpecificImage("LoadMoreLight", tradingPostPoint!.Value.X + 610, tradingPostPoint!.Value.Y + 679, 80, 18);
 
         // NoItems
         Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 174, tradingPostPoint!.Value.Y + 240);
@@ -974,7 +980,7 @@ internal static class GW2Flipper
         await Task.Delay(500);
 
         // Click search bar
-        Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 163, tradingPostPoint!.Value.Y + 165);
+        // Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 163, tradingPostPoint!.Value.Y + 165);
 
         // Check if filter isn't open
         if (FindFilter())
@@ -1000,7 +1006,7 @@ internal static class GW2Flipper
         if (screen == TradingPostScreen.Buy)
         {
             Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 173, tradingPostPoint!.Value.Y + 356);
-            Thread.Sleep(1000);
+            Thread.Sleep(200);
         }
         else
         {
@@ -1273,9 +1279,10 @@ internal static class GW2Flipper
             }
 
             // Find position of 'e' in Vendor to set the offset for other UI positions
-            var vendorEPos = ImageSearch.FindImageInWindow(process!, Resources.VendorE, tradingPostPoint!.Value.X + 345, tradingPostPoint!.Value.Y + 176, Resources.VendorE.Width, Resources.VendorE.Height + 31, 0.9);
+            var vendorEPos = ImageSearch.FindImageInWindow(process!, Resources.VendorE, tradingPostPoint!.Value.X + 345, tradingPostPoint!.Value.Y + 176, Resources.VendorE.Width, Resources.VendorE.Height + 31, 0.8);
             if (vendorEPos == null)
             {
+                LogTPImage();
                 Logger.Debug("vendorEPos null");
                 await CloseItemWindow();
                 goto SellItem;
@@ -1291,10 +1298,10 @@ internal static class GW2Flipper
 
             // Get OCR of item name and check if it matches API name
             var nameImage = ImageSearch.CaptureWindow(process!, tradingPostPoint!.Value.X + 334, tradingPostPoint.Value.Y + 136, 428, nameSize);
-            var capturedName = OCR.ReadName(nameImage!, RarityColors[itemInfo.Rarity.ToString()!], Config.OcrFixes);
+            var capturedName = OCR.ReadName(nameImage!, RarityColors[itemInfo.Rarity.ToString()!]);
 
             // Check captured name
-            if (string.IsNullOrEmpty(capturedName) || !OCR.NameCompare(itemInfo.Name, capturedName))
+            if (string.IsNullOrEmpty(capturedName) || !OCR.NameCompare(itemInfo.Name, capturedName, Config.OcrFixes))
             {
                 Logger.Debug("Item name different");
                 await CloseItemWindow();
@@ -1308,6 +1315,7 @@ internal static class GW2Flipper
             }
             catch (TimeoutException)
             {
+                LogTPImage();
                 Logger.Debug("Available didn't appear");
                 await CloseItemWindow();
                 goto SellItem;
@@ -1472,7 +1480,14 @@ internal static class GW2Flipper
             return;
         }
 
-        var inventoryItems = backpack.Bags.SelectMany(x => x.Inventory.Select(y => y?.Id));
+        var inventoryBags = backpack.Bags.Where(x => x != null).ToList();
+        var inventoryItems = inventoryBags.SelectMany(x => x.Inventory.Select(y => y?.Id)).ToList();
+
+        if (!inventoryItems.Any())
+        {
+            Logger.Info("Inventory empty");
+            return;
+        }
 
         List<Gw2Sharp.WebApi.V2.Models.CommerceTransactionCurrent>? currentSellingList = null;
         try
@@ -1558,7 +1573,14 @@ internal static class GW2Flipper
             return;
         }
 
-        var inventoryItems = backpack.Bags.SelectMany(x => x.Inventory.Select(y => y?.Id));
+        var inventoryBags = backpack.Bags.Where(x => x != null).ToList();
+        var inventoryItems = inventoryBags.SelectMany(x => x.Inventory.Select(y => y?.Id)).ToList();
+
+        if (!inventoryItems.Any())
+        {
+            Logger.Info("Inventory empty");
+            return;
+        }
 
         List<Gw2Sharp.WebApi.V2.Models.CommerceTransactionCurrent>? currentSellingList = null;
         try
@@ -1735,7 +1757,7 @@ internal static class GW2Flipper
             goto RestartBuy;
         }
 
-        await Task.Delay(1500);
+        await Task.Delay(500);
 
         // Wait for search results to load
         try
@@ -1825,9 +1847,10 @@ internal static class GW2Flipper
             }
 
             // Find position of 'e' in Vendor to set the offset for other UI positions
-            var vendorEPos = ImageSearch.FindImageInWindow(process!, Resources.VendorE, tradingPostPoint!.Value.X + 345, tradingPostPoint!.Value.Y + 176, Resources.VendorE.Width, Resources.VendorE.Height + 31, 0.9);
+            var vendorEPos = ImageSearch.FindImageInWindow(process!, Resources.VendorE, tradingPostPoint!.Value.X + 345, tradingPostPoint!.Value.Y + 176, Resources.VendorE.Width, Resources.VendorE.Height + 31, 0.8);
             if (vendorEPos == null)
             {
+                LogTPImage();
                 Logger.Debug("vendorEPos null");
                 await CloseItemWindow();
                 goto BuyItem;
@@ -1843,10 +1866,10 @@ internal static class GW2Flipper
 
             // Get OCR of item name and check if it matches API name
             var nameImage = ImageSearch.CaptureWindow(process!, tradingPostPoint!.Value.X + 334, tradingPostPoint.Value.Y + 136, 428, nameSize);
-            var capturedName = OCR.ReadName(nameImage!, RarityColors[itemInfo.Rarity.ToString()!], Config.OcrFixes);
+            var capturedName = OCR.ReadName(nameImage!, RarityColors[itemInfo.Rarity.ToString()!]);
 
             // Check captured name
-            if (string.IsNullOrEmpty(capturedName) || !OCR.NameCompare(itemInfo.Name, capturedName))
+            if (string.IsNullOrEmpty(capturedName) || !OCR.NameCompare(itemInfo.Name, capturedName, Config.OcrFixes))
             {
                 Logger.Debug("Item name different");
                 await CloseItemWindow();
@@ -1874,6 +1897,7 @@ internal static class GW2Flipper
             }
             catch (TimeoutException)
             {
+                LogTPImage();
                 Logger.Debug("Available didn't appear");
                 await CloseItemWindow();
                 goto BuyItem;
@@ -2235,8 +2259,8 @@ internal static class GW2Flipper
 
                 // Wait for load more button to appear
                 Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 650, tradingPostPoint!.Value.Y + 688);
-                await Task.Delay(500);
                 Input.MouseMove(process!, 540, 0);
+                await Task.Delay(500);
                 try
                 {
                     await WaitWhile(FindLoadMore, 500, 5000);
@@ -2273,8 +2297,8 @@ internal static class GW2Flipper
 
             // Wait for load more button to appear
             Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 650, tradingPostPoint!.Value.Y + 688);
-            await Task.Delay(500);
             Input.MouseMove(process!, 540, 0);
+            await Task.Delay(500);
             try
             {
                 await WaitWhile(FindLoadMore, 500, 5000);
@@ -2385,7 +2409,7 @@ internal static class GW2Flipper
             }
 
             // Find position of 'e' in Vendor to set the offset for other UI positions
-            var vendorEPos = ImageSearch.FindImageInWindow(process!, Resources.VendorE, tradingPostPoint!.Value.X + 345, tradingPostPoint!.Value.Y + 176, Resources.VendorE.Width, Resources.VendorE.Height + 31, 0.9);
+            var vendorEPos = ImageSearch.FindImageInWindow(process!, Resources.VendorE, tradingPostPoint!.Value.X + 345, tradingPostPoint!.Value.Y + 176, Resources.VendorE.Width, Resources.VendorE.Height + 31, 0.8);
             if (vendorEPos == null)
             {
                 Logger.Debug("vendorEPos null");
@@ -2401,10 +2425,10 @@ internal static class GW2Flipper
 
             // Get OCR of item name and check if it matches API name
             var nameImage = ImageSearch.CaptureWindow(process!, tradingPostPoint!.Value.X + 334, tradingPostPoint.Value.Y + 136, 428, nameSize);
-            var capturedName = OCR.ReadName(nameImage!, RarityColors[itemInfo.Rarity.ToString()!], Config.OcrFixes);
+            var capturedName = OCR.ReadName(nameImage!, RarityColors[itemInfo.Rarity.ToString()!]);
 
             // Check captured name
-            if (string.IsNullOrEmpty(capturedName) || !OCR.NameCompare(itemInfo.Name, capturedName))
+            if (string.IsNullOrEmpty(capturedName) || !OCR.NameCompare(itemInfo.Name, capturedName, Config.OcrFixes))
             {
                 Logger.Debug("Item name different");
                 await CloseItemWindow();
@@ -2472,8 +2496,8 @@ internal static class GW2Flipper
 
                 // Wait for load more button to appear
                 Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 650, tradingPostPoint!.Value.Y + 688);
-                await Task.Delay(500);
                 Input.MouseMove(process!, 540, 0);
+                await Task.Delay(500);
                 try
                 {
                     await WaitWhile(FindLoadMore, 500, 5000);
@@ -2510,8 +2534,8 @@ internal static class GW2Flipper
 
             // Wait for load more button to appear
             Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 650, tradingPostPoint!.Value.Y + 688);
-            await Task.Delay(500);
             Input.MouseMove(process!, 540, 0);
+            await Task.Delay(500);
             try
             {
                 await WaitWhile(FindLoadMore, 500, 5000);
@@ -2823,7 +2847,7 @@ internal static class GW2Flipper
 
     private static bool FindVendorE()
     {
-        var find = ImageSearch.FindImageInWindow(process!, Resources.VendorE, tradingPostPoint!.Value.X + 345, tradingPostPoint!.Value.Y + 176, Resources.VendorE.Width, Resources.VendorE.Height + 31, 0.9);
+        var find = ImageSearch.FindImageInWindow(process!, Resources.VendorE, tradingPostPoint!.Value.X + 345, tradingPostPoint!.Value.Y + 176, Resources.VendorE.Width, Resources.VendorE.Height + 31, 0.8);
         return find == null;
     }
 
@@ -2837,9 +2861,8 @@ internal static class GW2Flipper
     private static bool FindLoadMore()
     {
         var find1 = ImageSearch.FindImageInWindow(process!, Resources.LoadMore, tradingPostPoint!.Value.X + 610, tradingPostPoint!.Value.Y + 679, Resources.LoadMore.Width, Resources.LoadMore.Height, 0.9);
-        // var find2 = ImageSearch.FindImageInWindow(process!, Resources.LoadMoreDark, tradingPostPoint!.Value.X + 610, tradingPostPoint!.Value.Y + 679, Resources.LoadMoreDark.Width, Resources.LoadMoreDark.Height, 0.9);
-        // return find1 == null && find2 == null;
-        return find1 == null;
+        var find2 = ImageSearch.FindImageInWindow(process!, Resources.LoadMoreLight, tradingPostPoint!.Value.X + 610, tradingPostPoint!.Value.Y + 679, Resources.LoadMoreLight.Width, Resources.LoadMoreLight.Height, 0.9);
+        return find1 == null && find2 == null;
     }
 
     private static void DismissSuccess()
@@ -2876,7 +2899,7 @@ internal static class GW2Flipper
                 _ = Directory.CreateDirectory(directory);
             }
 
-            var fileName = Path.Combine(directory, $"{DateTime.Now:HH-mm-ss-ffff}.bmp");
+            var fileName = Path.Combine(directory, $"{DateTime.Now.ToString("s").Replace(":", string.Empty)}.bmp");
             Logger.Error($"File saved as {fileName}");
             image.Save(fileName, ImageFormat.Bmp);
         }
@@ -2887,7 +2910,7 @@ internal static class GW2Flipper
         var image = ImageSearch.CaptureFullWindow(process!);
         if (image != null)
         {
-            var directory = Path.Combine("images");
+            var directory = Path.Combine("logs", "images");
             if (!Directory.Exists(directory))
             {
                 _ = Directory.CreateDirectory(directory);
@@ -2909,7 +2932,7 @@ internal static class GW2Flipper
         var image = ImageSearch.CaptureWindow(process!, tradingPostPoint.Value.X, tradingPostPoint.Value.Y, 992, 732);
         if (image != null)
         {
-            var directory = Path.Combine("images");
+            var directory = Path.Combine("logs", "images");
             if (!Directory.Exists(directory))
             {
                 _ = Directory.CreateDirectory(directory);
@@ -2926,7 +2949,7 @@ internal static class GW2Flipper
         var image = ImageSearch.CaptureWindow(process!, x, y, width, height);
         if (image != null)
         {
-            var directory = Path.Combine("images");
+            var directory = Path.Combine("logs", "images");
             if (!Directory.Exists(directory))
             {
                 _ = Directory.CreateDirectory(directory);
