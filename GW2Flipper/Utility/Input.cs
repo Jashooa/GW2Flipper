@@ -371,8 +371,9 @@ internal static class Input
     public static void SendInput(INPUT input)
     {
         INPUT[] inputs = { input };
-        var success = User32.SendInput((uint)inputs.Length, inputs, Marshal.SizeOf(typeof(INPUT)));
-        /*if (success != inputs.Length)
+        _ = User32.SendInput((uint)inputs.Length, inputs, Marshal.SizeOf(typeof(INPUT)));
+        /*var success = User32.SendInput((uint)inputs.Length, inputs, Marshal.SizeOf(typeof(INPUT)));
+        if (success != inputs.Length)
         {
             throw new Exception("Some SendInput inputs were not sent successfully.");
         }*/

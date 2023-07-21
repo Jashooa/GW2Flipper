@@ -21,9 +21,10 @@ using NLog;
 
 internal static class GW2Flipper
 {
+    private const bool Debug = false;
+
     private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
     private static readonly Config Config = Config.Instance!;
-    private static readonly bool Debug = false;
 
     private static readonly List<BuyItem> BuyItemsList = new();
     private static readonly List<BuyItem> RemoveItemsList = new();

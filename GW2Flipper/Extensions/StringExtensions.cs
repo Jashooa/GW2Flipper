@@ -17,24 +17,25 @@ public static class StringExtensions
             var unicodeCategory = Rune.GetUnicodeCategory(c);
             if (unicodeCategory != UnicodeCategory.NonSpacingMark)
             {
-                stringBuilder.Append(c);
+                _ = stringBuilder.Append(c);
             }
         }
 
         return stringBuilder.ToString().Normalize(NormalizationForm.FormC);
     }
 
-    public static string StripPunctuation(this string s)
+    public static string StripPunctuation(this string str)
     {
-        var sb = new StringBuilder();
-        foreach (var c in s)
+        var stringBuilder = new StringBuilder();
+
+        foreach (var c in str)
         {
             if (!char.IsPunctuation(c))
             {
-                sb.Append(c);
+                _ = stringBuilder.Append(c);
             }
         }
 
-        return sb.ToString();
+        return stringBuilder.ToString();
     }
 }

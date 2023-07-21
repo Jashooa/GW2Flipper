@@ -19,7 +19,7 @@ internal static class OCR
         _ = engine.SetVariable("tessedit_char_whitelist", "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890 + -—/ '\",():");
 
         var ms = new MemoryStream();
-        bitmap.BinarizeByColor(color, 0.55).Save(ms, ImageFormat.Bmp);
+        bitmap.BinarizeByColor(color, 0.55).Save(ms, ImageFormat.Tiff);
         var image = TesseractOCR.Pix.Image.LoadFromMemory(ms).Scale(3.125f, 3.125f);
 
         using var page = engine.Process(image, TesseractOCR.Enums.PageSegMode.SingleBlock);
