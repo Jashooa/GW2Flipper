@@ -1,4 +1,5 @@
-﻿namespace GW2Flipper.Extensions;
+namespace GW2Flipper.Extensions;
+
 internal static class ListExtensions
 {
     public static void Shuffle<T>(this IList<T> list)

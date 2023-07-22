@@ -17,7 +17,7 @@ internal static class Program
         {
             if (args.Length == 0)
             {
-                await GW2Flipper.RunCancelAndSell();
+                await GW2Flipper.Run();
             }
             else if (args[0] == "cancel")
             {

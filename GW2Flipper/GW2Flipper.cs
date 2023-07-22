@@ -32,6 +32,7 @@ internal static class GW2Flipper
 
     private static readonly Dictionary<string, Color> RarityColors = new()
     {
+        { "Junk", Color.FromArgb(170, 170, 170) },
         { "Basic", Color.FromArgb(255, 255, 255) },
         { "Fine", Color.FromArgb(79, 157, 254) },
         { "Masterwork", Color.FromArgb(45, 197, 14) },
