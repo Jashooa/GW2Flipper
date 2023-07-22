@@ -1,4 +1,5 @@
 namespace GW2Flipper.Models;
+
 internal class BuyItem
 {
     public BuyItem(int id, string name, int buyPrice, int sellPrice, int profit, int sold, int bought)
