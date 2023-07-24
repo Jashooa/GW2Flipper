@@ -1289,7 +1289,6 @@ internal static class GW2Flipper
             var vendorEPos = ImageSearch.FindImageInWindow(process!, Resources.VendorE, tradingPostPoint!.Value.X + 345, tradingPostPoint!.Value.Y + 176, Resources.VendorE.Width, Resources.VendorE.Height + 31, 0.8);
             if (vendorEPos == null)
             {
-                LogTPImage();
                 Logger.Debug("vendorEPos null");
                 await CloseItemWindow();
                 goto SellItem;
@@ -1322,7 +1321,6 @@ internal static class GW2Flipper
             }
             catch (TimeoutException)
             {
-                LogTPImage();
                 Logger.Debug("Available didn't appear");
                 await CloseItemWindow();
                 goto SellItem;
@@ -1857,7 +1855,6 @@ internal static class GW2Flipper
             var vendorEPos = ImageSearch.FindImageInWindow(process!, Resources.VendorE, tradingPostPoint!.Value.X + 345, tradingPostPoint!.Value.Y + 176, Resources.VendorE.Width, Resources.VendorE.Height + 31, 0.8);
             if (vendorEPos == null)
             {
-                LogTPImage();
                 Logger.Debug("vendorEPos null");
                 await CloseItemWindow();
                 goto BuyItem;
@@ -1904,7 +1901,6 @@ internal static class GW2Flipper
             }
             catch (TimeoutException)
             {
-                LogTPImage();
                 Logger.Debug("Available didn't appear");
                 await CloseItemWindow();
                 goto BuyItem;
@@ -2561,7 +2557,7 @@ internal static class GW2Flipper
         catch (TimeoutException)
         {
             Logger.Error("Didn't load any search results");
-            LogImage();
+            // LogImage();
             return;
         }
 
