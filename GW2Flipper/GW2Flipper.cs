@@ -333,6 +333,11 @@ internal static class GW2Flipper
 
         LogFullImage();
 
+        /*// Play
+        Input.MouseMove(process!, 540, 0);
+        await Task.Delay(2500);
+        LogSpecificImage("Play", 861, 782, 25, 10);*/
+
         /*// NewMapShroom
         LogSpecificImage("NewMapShroom", 148, 418, 24, 24);
 
@@ -686,7 +691,7 @@ internal static class GW2Flipper
             }
             catch (TimeoutException)
             {
-                // PlayCharacterCheck();
+                PlayCharacterCheck();
 
                 if (ResetUI())
                 {
@@ -868,7 +873,7 @@ internal static class GW2Flipper
         catch (TimeoutException)
         {
             LogImage();
-            // PlayCharacterCheck();
+            PlayCharacterCheck();
             throw new TimeoutException();
         }
 
@@ -2763,11 +2768,26 @@ internal static class GW2Flipper
         Input.KeyPress(process!, VirtualKeyCode.LEFT, 100);
     }
 
-    /*private static void PlayCharacterCheck()
+    private static void PlayCharacterCheck()
     {
+        var errorPoint = ImageSearch.FindImageInFullWindow(process!, Resources.ErrorOK, 0.9);
+        if (errorPoint != null)
+        {
+            Logger.Info("Found error message box");
+            Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, errorPoint.Value.X + 10, errorPoint.Value.Y + 7);
+            Thread.Sleep(500);
+        }
+
+        if (ImageSearch.FindImageInFullWindow(process!, Resources.ReturnToGame, 0.9) != null)
+        {
+            Logger.Info("Found escape menu");
+            Input.KeyPress(process!, VirtualKeyCode.ESCAPE);
+            Thread.Sleep(500);
+        }
+
         Input.MouseMove(process!, 540, 0);
         Input.MouseClick(process!, Input.MouseButton.LeftButton);
-        Thread.Sleep(250);
+        Thread.Sleep(1000);
 
         if (ImageSearch.FindImageInWindow(process!, Resources.Play, 861, 782, Resources.Play.Width, Resources.Play.Height, 0.6) != null)
         {
@@ -2776,7 +2796,7 @@ internal static class GW2Flipper
             Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, 872, 788);
             Thread.Sleep(30000);
         }
-    }*/
+    }
 
     /*private static void CheckPosition()
     {
