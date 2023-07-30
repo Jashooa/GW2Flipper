@@ -405,8 +405,8 @@ internal static class Input
 
     private static void GetNormalizedPoint(ref Point point)
     {
-        point.X = (point.X * 65526 / User32.GetSystemMetrics(0)) + (point.X < 0 ? -1 : 1);
-        point.Y = (point.Y * 65526 / User32.GetSystemMetrics(1)) + (point.Y < 0 ? -1 : 1);
+        point.X = point.X * 65536 / User32.GetSystemMetrics(0);
+        point.Y = point.Y * 65536 / User32.GetSystemMetrics(1);
     }
 
     private static MouseFlag ToMouseButtonDownFlag(MouseButton button) => button switch
