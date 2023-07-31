@@ -1,16 +1,4 @@
 namespace GW2Flipper.Utility;
-
-using System.Diagnostics;
-using System.Drawing;
-using System.Runtime.InteropServices;
-using System.Text;
-
-using global::GW2Flipper.Native;
-
-using NLog;
-
-using TextCopy;
-
 internal static class Input
 {
     private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
