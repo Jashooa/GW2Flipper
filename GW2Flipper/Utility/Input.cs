@@ -95,7 +95,7 @@ internal static class Input
             {
                 Mouse = new MOUSEINPUT
                 {
-                    Flags = (uint)(MouseFlag.Move | MouseFlag.Absolute | MouseFlag.VirtualDesk),
+                    Flags = (uint)(MouseFlag.Move | MouseFlag.Absolute),
                     X = point.X,
                     Y = point.Y,
                     Time = 0,
@@ -405,8 +405,8 @@ internal static class Input
 
     private static void GetNormalizedPoint(ref Point point)
     {
-        var screenWidth = User32.GetSystemMetrics(78) - 1;
-        var screenHeight = User32.GetSystemMetrics(79) - 1;
+        var screenWidth = User32.GetSystemMetrics(0) - 1;
+        var screenHeight = User32.GetSystemMetrics(1) - 1;
         point.X = (int)((long)(point.X * 65535) / screenWidth);
         point.Y = (int)((long)(point.Y * 65535) / screenHeight);
     }
