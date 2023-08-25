@@ -1012,7 +1012,7 @@ internal static class GW2Flipper
         // Click reset filters
         if (screen == TradingPostScreen.Buy)
         {
-            Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 173, tradingPostPoint!.Value.Y + 356);
+            Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 173, tradingPostPoint!.Value.Y + 421);
             Thread.Sleep(200);
         }
         else
