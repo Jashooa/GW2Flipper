@@ -1,0 +1,30 @@
+{
+  "ApiKey": "",
+  "CharacterName": "",
+  "BuysPerSellLoop": 50,
+  "Quantity": 0.01,
+  "MaxSpend": 100000,
+  "UndercutBuys": true,
+  "UndercutSells": true,
+  "BuyIfSelling": true,
+  "SellForBestIfUnderRange": true,
+  "RemoveUnprofitable": true,
+  "IgnoreSellsLessThanBuys": true,
+  "SellsLessThanBuysRange": 1.5,
+  "ErrorRange": 0.8,
+  "ProfitRange": 0.5,
+  "UpdateListTime": 15,
+  "Arguments": [
+    {
+      "sell-min": "1",
+      "buy-min": "1",
+      "profit-min": "10",
+      "profit-max": "100",
+      "profit-pct-min": "15",
+      "profit-pct-max": "60",
+      "demand-min": "1000",
+      "sold-day-min": "1000",
+      "bought-day-min": "200"
+    }
+  ]
+}
