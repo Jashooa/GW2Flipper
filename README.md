@@ -57,3 +57,6 @@ Included is a sample config.json:
 ```
 
 Also included is ocrfixes.json where common OCR errors can be adjusted.
+
+## Disclaimer
+This project is intended for educational purposes and should be used responsibly and ethically. Be aware of Guild Wars 2's terms of service and follow them while using this project.
