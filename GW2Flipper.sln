@@ -8,6 +8,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{7BCE1C22-A398-4528-A7EC-75EE78EF098A}"
 	ProjectSection(SolutionItems) = preProject
 		.editorconfig = .editorconfig
+		README.md = README.md
 	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BlacklistGenerator", "BlacklistGenerator\BlacklistGenerator.csproj", "{23DA5F9F-D282-45B3-BD7A-58E25DC69C39}"

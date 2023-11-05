@@ -34,8 +34,6 @@ internal class Config
 
     public bool RemoveUnprofitable { get; set; }
 
-    public double MinStringSimilarity { get; set; }
-
     public double ErrorRange { get; set; }
 
     public double ErrorRangeInverse { get; set; }

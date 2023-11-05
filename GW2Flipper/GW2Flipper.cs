@@ -505,6 +505,7 @@ internal static class GW2Flipper
 
                     if (Config.IgnoreSellsLessThanBuys && (sold * Config.SellsLessThanBuysRange) < bought)
                     {
+                        // Logger.Debug($"Removing item with less sells than buys: [{itemId}] {itemName}");
                         continue;
                     }
 
@@ -557,6 +558,11 @@ internal static class GW2Flipper
 
         BuyItemsList.Sort((x, y) => y.Profit.CompareTo(x.Profit));
         // BuyItemsList.Shuffle();
+
+        /*foreach (var item in BuyItemsList.ToList())
+        {
+            Logger.Debug(item.Name);
+        }*/
 
         Logger.Info($"Items: {BuyItemsList.Count}");
     }
