@@ -266,48 +266,6 @@ internal static class GW2Flipper
         }
     }
 
-    public static async Task RunSellAll()
-    {
-        process = Array.Find(Process.GetProcessesByName("Gw2-64"), p => p.SessionId == Process.GetCurrentProcess().SessionId);
-        if (process == null)
-        {
-            Logger.Error("Couldn't find process");
-            return;
-        }
-
-        Logger.Info($"Found process: [{process!.Id}] {process!.MainWindowTitle}");
-
-        process.PriorityClass = ProcessPriorityClass.High;
-
-        foreach (var cefProcess in Process.GetProcessesByName("CoherentUI_Host").Where(p => p.SessionId == Process.GetCurrentProcess().SessionId))
-        {
-            cefProcess.PriorityClass = ProcessPriorityClass.High;
-        }
-
-        _ = User32.MoveWindow(process.MainWindowHandle, 0, 5, 1080, 850, true);
-        _ = User32.MoveWindow(Process.GetCurrentProcess().MainWindowHandle, 0, 855, 1080, 360, true);
-
-        Input.EnsureForegroundWindow(process);
-
-        tradingPostPoint = await GetTradingPostPoint();
-        if (tradingPostPoint == null)
-        {
-            Logger.Error("Couldn't open trading post");
-            return;
-        }
-
-        Logger.Info($"Found trading post at: {tradingPostPoint}");
-
-        try
-        {
-            await CancelAllBuying();
-        }
-        catch (Exception e)
-        {
-            Logger.Error(e);
-        }
-    }
-
     public static async Task RunImageSave()
     {
         process = Array.Find(Process.GetProcessesByName("Gw2-64"), p => p.SessionId == Process.GetCurrentProcess().SessionId);
@@ -905,88 +863,6 @@ internal static class GW2Flipper
 
         await Task.Delay(500);
     }
-
-    /* private static async Task SearchForItem(Gw2Sharp.WebApi.V2.Models.Item itemInfo, TradingPostScreen screen)
-    {
-        await Task.Delay(500);
-
-        // Click search bar
-        Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 163, tradingPostPoint!.Value.Y + 165);
-
-        if (screen == TradingPostScreen.Buy)
-        {
-            // Check if filter isn't open
-            if (FindFilter())
-            {
-                await Task.Delay(200);
-
-                // Click filter cog
-                Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 287, tradingPostPoint!.Value.Y + 165);
-
-                // Wait for filter to show up
-                try
-                {
-                    await WaitWhile(FindFilter, 500, 5000);
-                }
-                catch (TimeoutException)
-                {
-                    LogImage();
-                    throw new TimeoutException();
-                }
-            }
-
-            // Click reset filters
-            if (screen == TradingPostScreen.Buy)
-            {
-                Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 173, tradingPostPoint!.Value.Y + 356);
-                Thread.Sleep(1000);
-            }
-            else
-            {
-                Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 173, tradingPostPoint!.Value.Y + 309);
-            }
-        }
-
-        // Click search bar
-        Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 163, tradingPostPoint!.Value.Y + 165);
-
-        if (ImageSearch.FindImageInWindow(process!, Resources.TradingPostLion, tradingPostPoint!.Value.X, tradingPostPoint!.Value.Y, Resources.TradingPostLion.Width, Resources.TradingPostLion.Height) != null)
-        {
-            if (screen != TradingPostScreen.Buy)
-            {
-                // Select all
-                Input.KeyPressWithModifier(process!, VirtualKeyCode.VK_A, false, true, false);
-
-                // Backspace
-                Input.KeyPress(process!, VirtualKeyCode.BACK);
-            }
-
-            // Paste in name
-            // Input.KeyStringSend(process!, itemInfo.Name.MaxSize(30));
-            Input.KeyStringSendClipboard(process!, itemInfo.Name.MaxSize(30));
-            Input.KeyPress(process!, VirtualKeyCode.RETURN);
-        }
-
-        if (screen == TradingPostScreen.Buy)
-        {
-            // Set rarity
-            Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 173, tradingPostPoint!.Value.Y + 205);
-            await Task.Delay(500);
-            Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 173, tradingPostPoint!.Value.Y + 230 + (25 * RarityOrder[itemInfo.Rarity!]));
-            await Task.Delay(500);
-
-            // Input level
-            Input.MouseMoveAndDoubleClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 77, tradingPostPoint!.Value.Y + 270);
-            Input.KeyStringSend(process!, itemInfo.Level.ToString());
-            Input.MouseMoveAndDoubleClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 138, tradingPostPoint!.Value.Y + 270);
-            Input.KeyStringSend(process!, itemInfo.Level.ToString());
-
-            // Click filter cog to close
-            Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 287, tradingPostPoint!.Value.Y + 165);
-        }
-
-        await Task.Delay(1000);
-    }*/
 
     private static async Task SearchForItem(Gw2Sharp.WebApi.V2.Models.Item itemInfo, TradingPostScreen screen)
     {
@@ -2613,58 +2489,6 @@ internal static class GW2Flipper
             await Task.Delay(150);
         }
     }
-
-    /*private static async Task CancelUndercut()
-    {
-        Logger.Info("====================");
-        Logger.Info("Cancelling undercut buys");
-
-        using var apiClient = new Gw2Client(ApiConnection);
-
-        var currentBuying = await apiClient.WebApi.V2.Commerce.Transactions.Current.Buys.PageAsync(0);
-        var currentBuyingList = currentBuying.ToList();
-        var numBuyingPages = currentBuying.HttpResponseInfo?.PageTotal;
-        for (var i = 1; i < numBuyingPages; i++)
-        {
-            currentBuying = await apiClient.WebApi.V2.Commerce.Transactions.Current.Buys.PageAsync(i);
-            currentBuyingList = currentBuyingList.Concat(currentBuying.ToList()).ToList();
-        }
-
-        foreach (var item in BuyItemsList)
-        {
-            // Check if we're currently buying item
-            if (currentBuyingList.Any(x => x.ItemId == item.Id))
-            {
-                try
-                {
-                    var itemPrices = await apiClient.WebApi.V2.Commerce.Prices.GetAsync(item.Id);
-                    var highestPrice = itemPrices.Buys.UnitPrice;
-                    var price = currentBuyingList.Where(x => x.ItemId == item.Id).Max(x => x.Price);
-
-                    // If we haven't been undercut
-                    if (highestPrice <= price)
-                    {
-                        Logger.Debug($"{item.Name} Not undercut");
-                        continue;
-                    }
-                }
-                catch (Exception e)
-                {
-                    Logger.Error(e);
-                    continue;
-                }
-            }
-            else
-            {
-                Logger.Debug($"{item.Name} Not buying");
-                continue;
-            }
-
-            Logger.Info($"Cancelling [{item.Id}] {item.Name}");
-
-            await CancelItem(item);
-        }
-    }*/
 
     private static async Task CancelUnprofitable()
     {
