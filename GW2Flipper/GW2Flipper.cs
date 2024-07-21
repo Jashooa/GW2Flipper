@@ -923,10 +923,17 @@ internal static class GW2Flipper
         }
 
         // Input level
-        Input.MouseMoveAndDoubleClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 63, tradingPostPoint!.Value.Y + 270);
-        Input.KeyStringSend(process!, itemInfo.Level.ToString());
-        Input.MouseMoveAndDoubleClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 124, tradingPostPoint!.Value.Y + 270);
-        Input.KeyStringSend(process!, itemInfo.Level.ToString());
+        if (itemInfo.Level > 0)
+        {
+            Input.MouseMoveAndDoubleClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 63, tradingPostPoint!.Value.Y + 270);
+            Input.KeyStringSend(process!, itemInfo.Level.ToString());
+        }
+
+        if (itemInfo.Level < 80)
+        {
+            Input.MouseMoveAndDoubleClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 124, tradingPostPoint!.Value.Y + 270);
+            Input.KeyStringSend(process!, itemInfo.Level.ToString());
+        }
 
         // Click filter cog to close
         Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 287, tradingPostPoint!.Value.Y + 165);
