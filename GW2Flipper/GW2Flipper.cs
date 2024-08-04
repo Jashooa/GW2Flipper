@@ -54,6 +54,8 @@ internal static class GW2Flipper
         { "Legendary", 7 },
     };
 
+    private static readonly Dictionary<int, Gw2Sharp.WebApi.V2.Models.Item> ItemInfos = new();
+
     private static Process? process;
     private static Point? tradingPostPoint;
     private static DateTime timeSinceLastAfkCheck = DateTime.MinValue;
@@ -62,6 +64,7 @@ internal static class GW2Flipper
     private static DateTime timeSinceLastSell = DateTime.MinValue;
     private static DateTime timeSinceLastBuy = DateTime.MinValue;
     private static int currentLoopIndex;
+
 
     private enum TradingPostScreen
     {
@@ -844,12 +847,14 @@ internal static class GW2Flipper
         await Task.Delay(1000);
     }
 
-    private static void TakeNewDelivery()
+    private static async void TakeNewDelivery()
     {
         if (ImageSearch.FindImageInWindow(process!, Resources.NewDelivery, tradingPostPoint!.Value.X + 70, tradingPostPoint!.Value.Y + 445, Resources.NewDelivery.Width, Resources.NewDelivery.Height, 0.9) != null)
         {
             Input.MouseMoveAndClick(process!, Input.MouseButton.LeftButton, tradingPostPoint!.Value.X + 179, tradingPostPoint!.Value.Y + 685);
         }
+
+        await Task.Delay(500);
     }
 
     private static async Task CloseItemWindow()
@@ -996,30 +1001,34 @@ internal static class GW2Flipper
         restartAttempts++;
 
         // Get item info
-        Gw2Sharp.WebApi.V2.Models.Item? itemInfo = null;
-        try
+        if (!ItemInfos.TryGetValue(item.Id, out var itemInfo))
         {
-            itemInfo = await apiClient.WebApi.V2.Items.GetAsync(item.Id);
-        }
-        catch (JsonException)
-        {
-            return;
-        }
-        catch (Exception e)
-        {
-            Logger.Error(e);
-            if (!ResetUI())
+            try
+            {
+                itemInfo = await apiClient.WebApi.V2.Items.GetAsync(item.Id);
+            }
+            catch (JsonException)
             {
                 return;
             }
+            catch (Exception e)
+            {
+                Logger.Error(e);
+                if (!ResetUI())
+                {
+                    return;
+                }
 
-            goto RestartSell;
-        }
+                goto RestartSell;
+            }
 
-        if (itemInfo == null)
-        {
-            Logger.Warn("itemInfo null");
-            return;
+            if (itemInfo == null)
+            {
+                Logger.Warn("itemInfo null");
+                return;
+            }
+
+            ItemInfos.Add(item.Id, itemInfo);
         }
 
         // Get item prices
@@ -1531,30 +1540,34 @@ internal static class GW2Flipper
         restartAttempts++;
 
         // Get item info
-        Gw2Sharp.WebApi.V2.Models.Item? itemInfo = null;
-        try
+        if (!ItemInfos.TryGetValue(item.Id, out var itemInfo))
         {
-            itemInfo = await apiClient.WebApi.V2.Items.GetAsync(item.Id);
-        }
-        catch (JsonException)
-        {
-            return;
-        }
-        catch (Exception e)
-        {
-            Logger.Error(e);
-            if (!ResetUI())
+            try
+            {
+                itemInfo = await apiClient.WebApi.V2.Items.GetAsync(item.Id);
+            }
+            catch (JsonException)
             {
                 return;
             }
+            catch (Exception e)
+            {
+                Logger.Error(e);
+                if (!ResetUI())
+                {
+                    return;
+                }
 
-            goto RestartBuy;
-        }
+                goto RestartBuy;
+            }
 
-        if (itemInfo == null)
-        {
-            Logger.Warn("itemInfo null");
-            return;
+            if (itemInfo == null)
+            {
+                Logger.Warn("itemInfo null");
+                return;
+            }
+
+            ItemInfos.Add(item.Id, itemInfo);
         }
 
         // Get item prices
@@ -2083,30 +2096,34 @@ internal static class GW2Flipper
         restartAttempts++;
 
         // Get item info
-        Gw2Sharp.WebApi.V2.Models.Item? itemInfo = null;
-        try
+        if (!ItemInfos.TryGetValue(item.Id, out var itemInfo))
         {
-            itemInfo = await apiClient.WebApi.V2.Items.GetAsync(item.Id);
-        }
-        catch (JsonException)
-        {
-            return;
-        }
-        catch (Exception e)
-        {
-            Logger.Error(e);
-            if (!ResetUI())
+            try
+            {
+                itemInfo = await apiClient.WebApi.V2.Items.GetAsync(item.Id);
+            }
+            catch (JsonException)
             {
                 return;
             }
+            catch (Exception e)
+            {
+                Logger.Error(e);
+                if (!ResetUI())
+                {
+                    return;
+                }
 
-            goto RestartCancel;
-        }
+                goto RestartCancel;
+            }
 
-        if (itemInfo == null)
-        {
-            Logger.Warn("itemInfo null");
-            return;
+            if (itemInfo == null)
+            {
+                Logger.Warn("itemInfo null");
+                return;
+            }
+
+            ItemInfos.Add(item.Id, itemInfo);
         }
 
         // Go to transactions screen
